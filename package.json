@@ -1,0 +1,27 @@
+{
+  "name": "dialogflow-app-engine-minimalist",
+  "version": "1.0.0",
+  "description": "boilerplate for dialogflow fulfillment using Google Cloud Platform App Engine",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matthew-trump/dialogflow-app-engine-minimalist.git"
+  },
+  "author": "Matthew Trump <matthew.trump@gmail.com> (http://www.decumanus.com/)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/matthew-trump/dialogflow-app-engine-minimalist/issues"
+  },
+  "homepage": "https://github.com/matthew-trump/dialogflow-app-engine-minimalist#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.16.4",
+    "express-jwt": "^5.3.1",
+    "jsonwebtoken": "^8.5.1",
+    "knex": "^0.16.3"
+  }
+}
