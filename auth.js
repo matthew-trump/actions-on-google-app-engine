@@ -1,5 +1,5 @@
 const fs = require('fs');
-const SECRET_KEY = process.env.SECRET_KEY; //fs.readFileSync('./keys/secret.key',"utf8");
+const SECRET_KEY = process.env.SECRET_KEY;
 
 const verifySecretKey = function (req) {
 

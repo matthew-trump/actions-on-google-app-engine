@@ -1,0 +1,15 @@
+runtime: nodejs8
+env_variables:
+  ENVIRONMENT: production
+  CLOUD_SQL_INSTANCE_IDENTIFIER: -[your-production-project]:us-central1:your_cloud_sql_instance_name
+  ACCESSOR_PATH: "../../../data-accessor"
+  
+  SQL_DB_USERNAME: cloud-sql-username
+  SQL_DB_PASSWORD: cloud-sql-password
+  SQL_DB_DATABASE: cloud_sql_database_name
+
+  ADMIN_USERNAME: -api-admin-username-
+  ADMIN_PASSWORD: -api-admin-password-
+  ADMIN_SESSION_EXPIRY_IN_SECONDS: 2592000
+
+  SECRET_KEY: dialogflow-webhook-authorization-bearer-header-value

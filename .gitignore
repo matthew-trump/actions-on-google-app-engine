@@ -1,6 +1,7 @@
 #keys
 keys/*key*
 service.account
+environment-local.sh
 **.DS_Store
 # Logs
 logs
