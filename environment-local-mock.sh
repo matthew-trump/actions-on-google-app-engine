@@ -7,4 +7,4 @@ export SQL_DB_USERNAME=""
 export SQL_DB_PASSWORD=""
 export SQL_DB_DATABASE=""
 
-export SECRET_KEY: ""
+export SECRET_KEY=""

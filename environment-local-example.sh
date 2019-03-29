@@ -12,5 +12,5 @@ export ADMIN_USERNAME="admin"
 export ADMIN_PASSWORD="your-secret-admin-password"
 export ADMIN_SESSION_EXPIRY_IN_SECONDS=2592000
 
-export SECRET_KEY: "your-dialogflow-webhook-authorization-bearer-header-value"
+export SECRET_KEY="your-dialogflow-webhook-authorization-bearer-header-value"
 

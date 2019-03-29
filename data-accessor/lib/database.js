@@ -3,6 +3,7 @@ const Knex = require('knex');
 const SQL_DB_PLATFORM = process.env.SQL_DB_PLATFORM || 'mysql';
 const SQL_DB_USERNAME = process.env.SQL_DB_USERNAME;
 const SQL_DB_PASSWORD = process.env.SQL_DB_PASSWORD;
+const SQL_DB_DATABASE = process.env.SQL_DB_DATABASE;
 const CLOUD_SQL_INSTANCE_IDENTIFIER = process.env.CLOUD_SQL_INSTANCE_IDENTIFIER;
 
 const ENTRY_TABLE = process.env.SQL_ENTRY_TABLE || 'entry';
