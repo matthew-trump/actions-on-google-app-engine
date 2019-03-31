@@ -1,7 +1,7 @@
 {
-  "name": "dialogflow-app-engine",
+  "name": "actions-on-google-app-engine",
   "version": "1.0.0",
-  "description": "webhook and admin admin for deploying Dialogflow fulfillment as node express app on Google Cloud Platform App Engine with Cloud SQL backend",
+  "description": "webhook and admin api for deploying Dialogflow fulfillment as node express app on Google Cloud Platform App Engine with Cloud SQL backend",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -9,14 +9,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/matthew-trump/dialogflow-app-engine.git"
+    "url": "git+https://github.com/matthew-trump/actions-on-google-app-engine.git"
   },
   "author": "Matthew Trump <matthew.trump@gmail.com> (http://matthew-trump.com/)",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/matthew-trump/dialogflow-app-engine/issues"
+    "url": "https://github.com/matthew-trump/actions-on-google-app-engine/issues"
   },
-  "homepage": "https://github.com/matthew-trump/dialogflow-app-engine#readme",
+  "homepage": "https://github.com/matthew-trump/actions-on-google-app-engine#readme",
   "dependencies": {
     "actions-on-google": "^2.6.0",
     "cors": "^2.8.5",

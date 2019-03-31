@@ -6,6 +6,7 @@ const router = express.Router();
 
 const { DataAccessor } = require('./data-accessor');
 
+const CONFIG_SCHEMA_PATH = process.env.CONFIG_SCHEMA_PATH;
 const ADMIN_SESSION_EXPIRY_IN_SECONDS = process.env.ADMIN_SESSION_EXPIRY_IN_SECONDS || 3600 * 24 * 30;
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -14,6 +15,10 @@ const RSA_PUBLIC_KEY_PATH = process.env.RSA_PUBLC_KEY_PATH || './keys/jwtRS256.k
 
 const RSA_PRIVATE_KEY = fs.readFileSync(RSA_PRIVATE_KEY_PATH);
 const RSA_PUBLIC_KEY = fs.readFileSync(RSA_PUBLIC_KEY_PATH);
+
+const SCHEMA = require(CONFIG_SCHEMA_PATH);
+
+console.log(SCHEMA);
 
 const JWT_ALGORITHM = "RS256";
 const HTTP_UNAUTHORIZED = 401;
@@ -77,7 +82,7 @@ router.get('/protected',
     checkIfAuthenticated,
     handleUnauthorizedError,
     function (_, res) {
-        res.status(200).json({ message: "OK" });
+        res.status(200).json({ message: "OK-protected" });
     });
 router.post('/database/ping',
     checkIfAuthenticated,
@@ -86,7 +91,7 @@ router.post('/database/ping',
         DataAccessor.database.insertPing(req.body.key).then(
             (result) => {
                 console.log(result);
-                res.status(200).json({ message: "OK" });
+                res.status(200).json({ message: "Inserted Ping into Database: " + req.body.key });
             },
             (err) => {
                 console.log(err);
@@ -100,7 +105,7 @@ router.get('/database/ping',
     (req, res) => {
         DataAccessor.database.getPings(req.body.key).then(
             (result) => {
-                console.log(result);
+                //console.log(result);
                 res.status(200).json({ result: result });
             },
             (err) => {
@@ -109,6 +114,61 @@ router.get('/database/ping',
             }
         );
     })
+
+router.get('/config/schema',
+    checkIfAuthenticated,
+    handleUnauthorizedError,
+    function (_, res) {
+        res.status(200).json(SCHEMA);
+    });
+
+router.get('/entities/:plural',
+    checkIfAuthenticated,
+    handleUnauthorizedError,
+    (req, res) => {
+        let config = SCHEMA.entities.filter(e => { return e.plural === req.params.plural });
+        if (config.length > 0) {
+            const entityConfig = config[0];
+            DataAccessor.database.getEntities(entityConfig.table).then(
+                (result) => {
+                    //console.log(result);
+                    res.status(200).json({ result: result });
+                },
+                (err) => {
+                    console.log(err);
+                    res.status(400).json({ error: err });
+                }
+            );
+        } else {
+            res.status(400).json({ error: { message: "Entity " + req.params.plural + " not found." } })
+        }
+
+    });
+
+router.put('/entities/:plural/:id',
+    checkIfAuthenticated,
+    handleUnauthorizedError,
+    (req, res) => {
+        let config = SCHEMA.entities.filter(e => { return e.plural === req.params.plural });
+        if (config.length > 0) {
+            const entityConfig = config[0];
+            DataAccessor.database.updateEntity(entityConfig.table,
+                req.params.id,
+                req.body.update).then(
+                    _ => {
+                        res.status(200).json({});
+                    },
+                    (err) => {
+                        console.log(err);
+                        res.status(400).json({ error: err });
+                    }
+                );
+        } else {
+            res.status(400).json({ error: { message: "Entity " + req.params.plural + " not found." } })
+        }
+
+    });
+
 
 
 module.exports = router;

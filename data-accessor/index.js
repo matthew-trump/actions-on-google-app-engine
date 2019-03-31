@@ -1,5 +1,5 @@
-const Accessor = require("./lib/accessor");
+const DataAccessor = require("./lib/accessor");
 
 module.exports = {
-    accessor: Accessor
+    DataAccessor
 }

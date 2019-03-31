@@ -13,5 +13,5 @@ const accessor = class {
         }
     }
 }
-
-module.exports = new accessor()
+const DataAccessor = new accessor();
+module.exports = DataAccessor;

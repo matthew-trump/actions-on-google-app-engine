@@ -37,19 +37,54 @@ const database = class {
             connection: connection
         });
     }
-
-    getPings() {
-        return this.db(PING_TABLE);
-    }
     insertPing(key) {
         return this.db(PING_TABLE).insert({ key: key });
     }
+    getPings() {
+        return this.db(PING_TABLE);
+    }
+    getEntities(table) {
+        return this.db(table);
+    }
+    updateEntity(table, id, update) {
+        return this.db(table).where({ id: id }).update(update);
+    }
+
+
     getCategories() {
         return this.db(CATEGORY_TABLE);
     }
     getCategoryIds() {
         return this.db(ENTRY_TABLE).pluck(CATEGORY_TABLE);
     }
+    getCategory(id) {
+        if (id > 0) {
+            return this.db(CATEGORY_TABLE).where({ id: id });
+        } else {
+            return Promise.resolve([{ id: 0, name: 'General' }]);
+        }
+    }
+    insertCategory(category) {
+        //const datetimeNow = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        //category.datetime = datetimeNow;
+        return this.db(CATEGORY_TABLE).insert(category);
+    }
+    deleteCategory(id) {
+        return this.db(CATEGORY_TABLE).where({ id: id }).del();
+    }
+    insertCategories(categoryNames) {
+        if (!categoryNames || categoryNames.length == 0) {
+            return Promise.resolve(0);
+        }
+        //const datetimeNow = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        const categories = categoryNames.map(name => {
+            return { name: name }
+            //, datetime: datetimeNow }
+        })
+        return this.db(CATEGORY_TABLE).insert(categories);
+    }
+
+
     countEntries(id) {
         return this.db(ENTRY_TABLE)
             .where({ category: id })
@@ -80,31 +115,7 @@ const database = class {
     updateEntry(id, update) {
         return this.db(CATEGORY_TABLE).where({ id: id }).update(update);
     }
-    getCategory(id) {
-        if (id > 0) {
-            return this.db(CATEGORY_TABLE).where({ id: id });
-        } else {
-            return Promise.resolve([{ id: 0, name: 'General' }]);
-        }
-    }
-    insertCategory(category) {
-        const datetimeNow = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        category.datetime = datetimeNow;
-        return this.db(CATEGORY_TABLE).insert(category);
-    }
-    deleteCategory(id) {
-        return this.db(CATEGORY_TABLE).where({ id: id }).del();
-    }
-    insertCategories(categoryNames) {
-        if (!categoryNames || categoryNames.length == 0) {
-            return Promise.resolve(0);
-        }
-        const datetimeNow = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        const categories = categoryNames.map(name => {
-            return { name: name, datetime: datetimeNow }
-        })
-        return this.db(CATEGORY_TABLE).insert(categories);
-    }
+
     countEntries(categoryId) {
         return this.db(ENTRY_TABLE)
             .where({ category: categoryId })
