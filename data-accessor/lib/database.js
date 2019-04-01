@@ -59,6 +59,12 @@ const database = class {
     updateEntity(table, id, update) {
         return this.db(table).where({ id: id }).update(update);
     }
+    addEntities(table, entities) {
+        if (!entities || entities.length == 0) {
+            return Promise.resolve(0);
+        }
+        return this.db(table).insert(entities);
+    }
 
 
     getCategories() {

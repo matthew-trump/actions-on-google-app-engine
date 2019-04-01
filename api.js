@@ -188,6 +188,21 @@ router.put('/entities/:plural/:id',
 
     });
 
+router.post('/entities/:plural',
+    checkIfAuthenticated,
+    handleUnauthorizedError,
+    asyncMiddleware(async (req, res) => {
+        let config = SCHEMA.entities.filter(e => { return e.plural === req.params.plural });
+        if (config.length > 0) {
+            const entityConfig = config[0];
+            const result = await DataAccessor.database.addEntities(entityConfig.table, req.body.entities);
+            res.status(200).json({ result: result });
+        } else {
+            res.status(400).json({ error: { message: "Entity " + req.params.plural + " not found." } })
+        }
+
+    }));
+
 
 
 module.exports = router;

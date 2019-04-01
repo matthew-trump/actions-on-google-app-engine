@@ -4,9 +4,11 @@
             "name": "author",
             "plural": "authors",
             "table": "authors",
+            "add": true,
             "fields": [
                 {
                     "name": "name",
+                    "required": true,
                     "editable": true
                 }
             ]
@@ -15,9 +17,11 @@
             "name": "quote",
             "plural": "quotes",
             "table": "quotes",
+            "add": true,
             "fields": [
                 {
                     "name": "text",
+                    "required": true,
                     "editable": true
                 }
             ]
