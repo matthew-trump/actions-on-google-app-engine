@@ -16,6 +16,7 @@
             "plural": "questions",
             "table": "question",
             "enablement": "status",
+            "defaultEnabled": 1,
             "filter": [
                 {
                     "entity": "categories",

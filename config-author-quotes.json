@@ -18,11 +18,19 @@
             "plural": "quotes",
             "table": "quotes",
             "add": true,
+            "enablement": "status",
+            "defaultEnabled": 1,
             "fields": [
                 {
                     "name": "text",
                     "required": true,
                     "editable": true
+                },
+                {
+                    "name": "author",
+                    "editable": true,
+                    "foreignKey": "authors",
+                    "label": "name"
                 }
             ]
         }
