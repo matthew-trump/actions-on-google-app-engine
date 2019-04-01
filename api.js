@@ -122,6 +122,7 @@ router.get('/config/schema',
         res.status(200).json(SCHEMA);
     });
 
+
 router.get('/entities/:plural',
     checkIfAuthenticated,
     handleUnauthorizedError,
@@ -129,7 +130,24 @@ router.get('/entities/:plural',
         let config = SCHEMA.entities.filter(e => { return e.plural === req.params.plural });
         if (config.length > 0) {
             const entityConfig = config[0];
-            DataAccessor.database.getEntities(entityConfig.table, req.query).then(
+            const query = req.query;
+
+            let filter;
+            let search;
+            if (query) {
+                if (query.search) {
+                    const remainder = Object.assign({}, query);
+                    delete remainder.search;
+                    filter = remainder;
+                    search = entityConfig.search ? { field: entityConfig.search, value: '%' + query.search + '%' } : null;
+
+                } else {
+                    filter = query;
+                    search = null;
+                }
+            }
+
+            DataAccessor.database.getEntities(entityConfig.table, filter, search).then(
                 (result) => {
                     //console.log(result);
                     res.status(200).json({ result: result });
