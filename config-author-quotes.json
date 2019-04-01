@@ -1,0 +1,26 @@
+{
+    "entities": [
+        {
+            "name": "author",
+            "plural": "authors",
+            "table": "authors",
+            "fields": [
+                {
+                    "name": "name",
+                    "editable": true
+                }
+            ]
+        },
+        {
+            "name": "quote",
+            "plural": "quotes",
+            "table": "quotes",
+            "fields": [
+                {
+                    "name": "text",
+                    "editable": true
+                }
+            ]
+        }
+    ]
+}

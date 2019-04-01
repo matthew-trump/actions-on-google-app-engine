@@ -1,0 +1,42 @@
+{
+    "entities": [
+        {
+            "name": "category",
+            "plural": "categories",
+            "table": "category",
+            "fields": [
+                {
+                    "name": "name",
+                    "editable": true
+                }
+            ]
+        },
+        {
+            "name": "question",
+            "plural": "questions",
+            "table": "question",
+            "enablement": "status",
+            "filter": [
+                {
+                    "entity": "categories",
+                    "field": "category",
+                    "label": "name",
+                    "all": true
+                }
+            ],
+            "search": "text",
+            "fields": [
+                {
+                    "name": "text",
+                    "editable": true
+                },
+                {
+                    "name": "category",
+                    "editable": true,
+                    "foreignKey": "categories",
+                    "label": "name"
+                }
+            ]
+        }
+    ]
+}
