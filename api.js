@@ -35,6 +35,11 @@ const checkIfAuthenticated = expressJwt({
     errorOnFailedAuth: false
 });
 
+const asyncMiddleware = fn =>
+    (req, res, next) => {
+        Promise.resolve(fn(req, res, next))
+            .catch(next);
+    };
 
 router.post('/login', (req, res) => {
     const username = req.body.username;
@@ -126,42 +131,38 @@ router.get('/config/schema',
 router.get('/entities/:plural',
     checkIfAuthenticated,
     handleUnauthorizedError,
-    (req, res) => {
+    asyncMiddleware(async (req, res) => {
         let config = SCHEMA.entities.filter(e => { return e.plural === req.params.plural });
         if (config.length > 0) {
             const entityConfig = config[0];
-            const query = req.query;
 
-            let filter;
-            let search;
-            if (query) {
-                if (query.search) {
-                    const remainder = Object.assign({}, query);
-                    delete remainder.search;
-                    filter = remainder;
-                    search = entityConfig.search ? { field: entityConfig.search, value: '%' + query.search + '%' } : null;
-
-                } else {
-                    filter = query;
-                    search = null;
-                }
+            const queryObj = {}
+            if (req.query.limit) {
+                queryObj.limit = req.query.limit;
             }
-
-            DataAccessor.database.getEntities(entityConfig.table, filter, search).then(
-                (result) => {
-                    //console.log(result);
-                    res.status(200).json({ result: result });
-                },
-                (err) => {
-                    console.log(err);
-                    res.status(400).json({ error: err });
+            if (req.query.search && entityConfig.search) {
+                queryObj.search = { field: entityConfig.search, value: '%' + req.query.search + '%' };
+            }
+            Object.keys(req.query).map((key) => {
+                if (['offset', 'limit', 'search'].indexOf(key) === -1) {
+                    queryObj.filter = queryObj.filter || {};
+                    queryObj.filter[key] = req.query[key];
                 }
-            );
+            });
+            const offset = parseInt(req.query.offset);
+            const dbQuery = DataAccessor.database.getEntities(entityConfig.table, queryObj);
+            const total = await dbQuery.clone().count();
+            /**
+             * must add offset condition AFTER getting total or else total returns empty array for nonzero offset
+             */
+            const entities = await (offset > 0 ? dbQuery.offset(offset) : dbQuery);
+            queryObj.offset = offset;
+            res.status(200).json({ query: queryObj, total: total[0]["count(*)"], returned: entities.length, entities: entities });
         } else {
             res.status(400).json({ error: { message: "Entity " + req.params.plural + " not found." } })
         }
 
-    });
+    }));
 
 router.put('/entities/:plural/:id',
     checkIfAuthenticated,

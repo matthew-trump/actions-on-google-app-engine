@@ -43,19 +43,18 @@ const database = class {
     getPings() {
         return this.db(PING_TABLE);
     }
-    getEntities(table, filter, search) {
-        if (search) {
-            if (filter) {
-                return this.db(table).where(filter).where(search.field, 'like', search.value);
-            } else {
-                return this.db(table).where(search.field, 'like', search.value);
-            }
-        } else if (filter) {
-            return this.db(table).where(filter);
-        } else {
-            return this.db(table);
+    getEntities(table, queryObj) {
+        let dbQuery = this.db(table);
+        if (queryObj.filter) {
+            dbQuery = dbQuery.where(queryObj.filter)
         }
-
+        if (queryObj.search) {
+            dbQuery = dbQuery.where(queryObj.search.field, 'like', queryObj.search.value);
+        }
+        if (queryObj.limit) {
+            dbQuery = dbQuery.limit(parseInt(queryObj.limit));
+        }
+        return dbQuery;
     }
     updateEntity(table, id, update) {
         return this.db(table).where({ id: id }).update(update);
