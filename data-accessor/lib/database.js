@@ -43,8 +43,8 @@ const database = class {
     getPings() {
         return this.db(PING_TABLE);
     }
-    getEntities(table) {
-        return this.db(table);
+    getEntities(table, query) {
+        return query ? this.db(table).where(query) : this.db(table);
     }
     updateEntity(table, id, update) {
         return this.db(table).where({ id: id }).update(update);

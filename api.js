@@ -129,7 +129,7 @@ router.get('/entities/:plural',
         let config = SCHEMA.entities.filter(e => { return e.plural === req.params.plural });
         if (config.length > 0) {
             const entityConfig = config[0];
-            DataAccessor.database.getEntities(entityConfig.table).then(
+            DataAccessor.database.getEntities(entityConfig.table, req.query).then(
                 (result) => {
                     //console.log(result);
                     res.status(200).json({ result: result });
