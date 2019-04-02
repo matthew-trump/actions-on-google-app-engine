@@ -4,18 +4,30 @@
         "entity": "questions",
         "selectors": [
             {
-                "type": "foreignKey",
                 "entity": "categories",
                 "label": "name",
+                "type": "foreignKey",
+                "name": "category",
                 "required": false,
                 "default": 0
             },
             {
                 "type": "quantity",
+                "name": "number",
+                "required": true,
                 "default": 10
             },
             {
-                "type": "startTime"
+                "type": "quantity",
+                "name": "pool",
+                "required": true,
+                "default": 10
+            },
+            {
+                "type": "startTime",
+                "name": "start",
+                "required": true,
+                "default": null
             }
         ]
     },

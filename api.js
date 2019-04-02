@@ -132,7 +132,7 @@ router.post('/schedule',
     handleUnauthorizedError,
     asyncMiddleware(async (req, res) => {
         let config = SCHEMA.schedule;
-        const items = req.body.items.map((entity) => {
+        const items = req.body.items.map((item) => {
             return getScheduleItemDatabaseObjectFromRequest(config, item);
         });
         const result = await DataAccessor.database.addScheduleItems(config.table, items);

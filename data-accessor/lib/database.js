@@ -1,5 +1,6 @@
 const Knex = require('knex');
 
+const SQL_DB_TIMEZONE = process.env.SQL_DB_TIMEZONE || 'UTC';
 const SQL_DB_PLATFORM = process.env.SQL_DB_PLATFORM || 'mysql';
 const SQL_DB_USERNAME = process.env.SQL_DB_USERNAME;
 const SQL_DB_PASSWORD = process.env.SQL_DB_PASSWORD;
@@ -21,8 +22,9 @@ const database = class {
         this.db = this.connect();
     }
     connect() {
-        console.log("CONNECTING TO DATABASE " + SQL_DB_DATABASE);
+        console.log("CONNECTING TO DATABASE " + SQL_DB_DATABASE + " " + SQL_DB_TIMEZONE);
         const connection = {
+            timezone: SQL_DB_TIMEZONE,
             user: SQL_DB_USERNAME,
             password: SQL_DB_PASSWORD,
             database: SQL_DB_DATABASE

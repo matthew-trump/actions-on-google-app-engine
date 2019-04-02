@@ -1,4 +1,49 @@
 {
+    "schedule": {
+        "table": "schedule",
+        "entity": "quotes",
+        "start": "start",
+        "defaultStartOffsetMinutes": 10,
+        "selectors": [
+            {
+                "entity": "authors",
+                "label": "name",
+                "type": "foreignKey",
+                "name": "author",
+                "required": false,
+                "default": 0,
+                "nullValue": "any"
+            },
+            {
+                "type": "quantity",
+                "name": "number",
+                "required": true,
+                "default": 10
+            },
+            {
+                "type": "quantity",
+                "name": "pool",
+                "required": true,
+                "default": 100
+            },
+            {
+                "type": "date",
+                "name": "startDate",
+                "placeholder": "Start date",
+                "required": true
+            },
+            {
+                "type": "hour",
+                "name": "startHour",
+                "required": true
+            },
+            {
+                "type": "minute",
+                "name": "startMinute",
+                "required": true
+            }
+        ]
+    },
     "entities": [
         {
             "name": "author",
