@@ -165,7 +165,14 @@ router.put('/schedule/:id',
 
 
     });
-
+router.delete("/schedule/:id",
+    checkIfAuthenticated,
+    handleUnauthorizedError,
+    asyncMiddleware(async (req, res) => {
+        await DataAccessor.database.deleteScheduledItem(SCHEMA.schedule.table, parseInt(req.params.id));
+        res.send({})
+    }
+    ));
 router.get('/schedule',
     checkIfAuthenticated,
     handleUnauthorizedError,

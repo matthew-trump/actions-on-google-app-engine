@@ -81,6 +81,12 @@ const database = class {
     updateScheduleItem(table, id, update) {
         return this.db(table).where({ id: id }).update(update);
     }
+    deleteScheduledItem(table, id) {
+        return this.db(table).where({ id: id }).del();
+    }
+
+
+
 
 
     getCategories() {
