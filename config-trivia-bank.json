@@ -1,0 +1,89 @@
+{
+    "schedule": {
+        "table": "schedule",
+        "entity": "questions",
+        "selectors": [
+            {
+                "type": "foreignKey",
+                "entity": "categories",
+                "label": "name",
+                "required": false,
+                "default": 0
+            },
+            {
+                "type": "quantity",
+                "default": 10
+            },
+            {
+                "type": "startTime"
+            }
+        ]
+    },
+    "entities": [
+        {
+            "name": "category",
+            "plural": "categories",
+            "table": "category",
+            "add": true,
+            "fields": [
+                {
+                    "name": "name",
+                    "required": true,
+                    "editable": true
+                }
+            ]
+        },
+        {
+            "name": "question",
+            "plural": "questions",
+            "table": "question",
+            "add": true,
+            "enablement": "status",
+            "defaultEnabled": 1,
+            "filter": [
+                {
+                    "entity": "categories",
+                    "field": "category",
+                    "label": "name",
+                    "all": true
+                }
+            ],
+            "search": {
+                "field": "search",
+                "compose": [
+                    "text",
+                    "answer_correct",
+                    "answer_incorrect_1",
+                    "answer_incorrect_2"
+                ],
+                "separator": "::"
+            },
+            "fields": [
+                {
+                    "name": "text",
+                    "required": true,
+                    "editable": true
+                },
+                {
+                    "name": "answer_correct",
+                    "required": true,
+                    "editable": true
+                },
+                {
+                    "name": "answer_incorrect_1",
+                    "editable": true
+                },
+                {
+                    "name": "answer_incorrect_2",
+                    "editable": true
+                },
+                {
+                    "name": "category",
+                    "editable": true,
+                    "foreignKey": "categories",
+                    "label": "name"
+                }
+            ]
+        }
+    ]
+}

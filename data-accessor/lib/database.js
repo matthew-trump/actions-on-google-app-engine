@@ -21,6 +21,7 @@ const database = class {
         this.db = this.connect();
     }
     connect() {
+        console.log("CONNECTING TO DATABASE " + SQL_DB_DATABASE);
         const connection = {
             user: SQL_DB_USERNAME,
             password: SQL_DB_PASSWORD,
@@ -64,6 +65,19 @@ const database = class {
             return Promise.resolve(0);
         }
         return this.db(table).insert(entities);
+    }
+
+    addScheduleItems(table, item) {
+        if (!item) {
+            return Promise.resolve(0);
+        }
+        return this.db(table).insert(item);
+    }
+    getSchedule(table) {
+        return this.db(table);
+    }
+    updateScheduleItem(table, id, update) {
+        return this.db(table).where({ id: id }).update(update);
     }
 
 
