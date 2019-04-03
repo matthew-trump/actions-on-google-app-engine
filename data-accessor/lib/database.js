@@ -80,13 +80,14 @@ const database = class {
         }
         return dbQuery;
     }
-    getScheduleItem(queryObj) {
+    async getScheduleItem(id) {
         const table = this.schema.schedule.table;
-        let dbQuery = this.db(table)
-        if (queryObj.limit) {
-            dbQuery = dbQuery.limit(parseInt(queryObj.limit));
+        const items = await this.db(table).where({ id: id });
+        if (items) {
+            const item = items[0];
+            return item;
         }
-        return dbQuery;
+        return null;
     }
     updateScheduleItem(id, update) {
         const table = this.schema.schedule.table;
@@ -101,10 +102,11 @@ const database = class {
         const datetimeNow = (new Date()).toISOString().slice(0, 19).replace('T', ' ');
         const current = await this.db(table).where('start', '<', datetimeNow).orderBy('start', 'DESC').limit(1);
         const nextone = await this.db(table).where('start', '>', datetimeNow).orderBy('start', 'ASC').limit(1);
-        return Promise.resolve({
+        const obj = {
             current: current ? current[0] : null,
             next: nextone ? nextone[0] : null
-        });
+        };
+        return obj;
     }
 
 }

@@ -4,12 +4,21 @@ const { ORM } = require('./orm');
 const ALLOW_USER_STORAGE_ACCESS = process.env.ALLOW_USER_STORAGE_ACCESS || 0;
 const CONFIG_SCHEMA_PATH = process.env.CONFIG_SCHEMA_PATH;
 const SCHEMA = require(CONFIG_SCHEMA_PATH);
+const SCHEDULE_KEY_SEPARATOR = process.env.SCHEDULE_KEY_SEPARTOR || ":";
+const SCHEDULE_KEY_PREFIX = process.env.SCHEDULE_KEY_SEPARTOR || "SKEY";
+const DEFAULT_NUMBER_FIELD = "number";
+const DEFAULT_POOL_FIELD = "pool";
+const DEFAULT_START_FIELD = "start";
 
 const accessor = class {
+
+
     constructor() {
         this.database = Database;
         if (process.env.SQL_DB_USERNAME) {
             this.database.initialize(SCHEMA);
+            this.scheduleItemCache = {};
+            this.loadScheduledEntityPool(0, {}, null);
         } else {
             console.log("NO DATABASE CONNECTION CONFIGURED");
         }
@@ -17,71 +26,59 @@ const accessor = class {
     getSchema() {
         return SCHEMA;
     }
+    getScheduleForeignKeyConfigs() {
+        const fields = SCHEMA.schedule.fields.filter(field => {
+            return typeof field.foreignKey !== 'undefined'
+        });
+        return fields;
+    }
+    getScheduleNumberField() {
+        return SCHEMA.schedule.number || DEFAULT_NUMBER_FIELD;
+    }
+    getSchedulePoolField() {
+        return SCHEMA.schedule.pool || DEFAULT_POOL_FIELD;
+    }
+    getScheduleStartField() {
+        return SCHEMA.schedule.start || DEFAULT_START_FIELD;
+    }
+    getScheduleKey(item) {
+        return SCHEDULE_KEY_PREFIX + SCHEDULE_KEY_SEPARATOR + (this.getScheduleForeignKeyConfigs().map(entityConfig => {
+            return item[entityConfig.name]
+        }).join(SCHEDULE_KEY_SEPARATOR)) + SCHEDULE_KEY_SEPARATOR + item[this.getScheduleNumberField()];
+    }
     getEntityConfig(plural) {
         const config = SCHEMA.entities.filter(e => { return e.plural === plural });
         return config ? config[0] : null;
     }
 
-    loadScheduledPool(id, options, callback) {
-        const c = this;
+    async loadScheduledEntityPool(id, options, callback) {
         if (options.forceReload) {
             console.log("FORCE RELOAD");
         }
         if (!this.database.db) {
-            console.log("BYPASS LOAD SCHEDULED QUIZ ", id ? id : 'CURRENT');
+            console.log("BYPASS LOAD SCHEDULED ITEM", id ? id : 'CURRENT');
             return;
         } else {
-            console.log("LOADING SCHEDULED QUIZ ", id ? id : 'CURRENT');
+            console.log("LOADING SCHEDULED ITEM", id ? id : 'CURRENT');
         }
-        this.database.getScheduledQuiz(id)
-            .then((result) => {
-                const scheduledQuiz = result[0];
-                if (scheduledQuiz) {
-
-                    const categoryId = scheduledQuiz.category;
-                    const themeId = scheduledQuiz.theme;
-                    const numQuestions = scheduledQuiz.number;
-                    const key = this.getQuizKey(scheduledQuiz);
-
-
-
-                    this.currentQuizKey = key;
-
-                    //only load if not loaded previously;
-                    if (forceReload || !this.quizBank[key]) {
-
-
-
-
-
-                        const qObj = {};
-
-                        qObj.options = {
-                            selectBy: scheduledQuiz.randomize_user,
-                            orderBy: scheduledQuiz.question_order,
-                            numQuestions: scheduledQuiz.number,
-                            categoryId: categoryId,
-                            themeId: themeId
-                        }
-                        this.quizBank[key] = qObj;
-                        c.loadQuizObjects(qObj)
-                        if (callback) {
-                            callback();
-                        }
-
-
-
-                        console.log("LOADED ", key)
-                    } else {
-                        console.log("RETAINED ", key)
-                    }
-                } else {
-                    console.log("ERROR Current Scheduled Quiz not found");
+        const item = id ? await this.database.getScheduleItem(id) : (await this.database.getCurrentScheduleItem()).current;
+        if (item) {
+            const key = this.getScheduleKey(item);
+            this.currentKey = key;
+            if (options.forceReload || !this.scheduleItemCache[key]) {
+                const pObj = Object.assign({}, item);
+                this.scheduleItemCache[key] = pObj;
+                //this.loadScheduledEntities(pObj)
+                if (callback) {
+                    callback();
                 }
-            })
-            .catch((err) => {
-                console.log(err);
-            });
+                console.log("LOADED", key)
+            } else {
+                console.log("RETAINED", key)
+            }
+        } else {
+            console.log("ERROR Current Scheduled Item not found");
+        }
     }
 
 }
