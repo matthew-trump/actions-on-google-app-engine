@@ -173,6 +173,18 @@ router.delete("/schedule/:id",
         res.send({})
     }
     ));
+
+
+
+router.get('/current',
+    checkIfAuthenticated,
+    handleUnauthorizedError,
+    asyncMiddleware(async (req, res) => {
+        let config = SCHEMA.schedule;
+        const currentWithNext = await DataAccessor.database.getCurrentScheduleItem(config.table);
+        res.status(200).json(currentWithNext);
+    }));
+
 router.get('/schedule',
     checkIfAuthenticated,
     handleUnauthorizedError,
@@ -183,7 +195,7 @@ router.get('/schedule',
             queryObj.limit = req.query.limit;
         }
         const offset = parseInt(req.query.offset);
-        const dbQuery = DataAccessor.database.getSchedule(config.table, queryObj);
+        const dbQuery = DataAccessor.database.getSchedule(config.table, queryObj).orderBy('start', 'DESC');
         const total = await dbQuery.clone().count();
         const items = await (offset > 0 ? dbQuery.offset(offset) : dbQuery);
         queryObj.offset = offset;

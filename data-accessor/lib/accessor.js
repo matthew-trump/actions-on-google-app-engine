@@ -12,6 +12,7 @@ const accessor = class {
             console.log("NO DATABASE CONNECTION CONFIGURED");
         }
     }
+
 }
 const DataAccessor = new accessor();
 module.exports = DataAccessor;

@@ -75,8 +75,12 @@ const database = class {
         }
         return this.db(table).insert(item);
     }
-    getSchedule(table) {
-        return this.db(table);
+    getSchedule(table, queryObj) {
+        let dbQuery = this.db(table)
+        if (queryObj.limit) {
+            dbQuery = dbQuery.limit(parseInt(queryObj.limit));
+        }
+        return dbQuery;
     }
     updateScheduleItem(table, id, update) {
         return this.db(table).where({ id: id }).update(update);
@@ -84,7 +88,16 @@ const database = class {
     deleteScheduledItem(table, id) {
         return this.db(table).where({ id: id }).del();
     }
-
+    async getCurrentScheduleItem(table, ) {
+        const datetimeNow = (new Date()).toISOString().slice(0, 19).replace('T', ' ');
+        //console.log("DATETIME NOW", datetimeNow)
+        const current = await this.db(table).where('start', '<', datetimeNow).orderBy('start', 'DESC').limit(1);
+        const nextone = await this.db(table).where('start', '>', datetimeNow).orderBy('start', 'ASC').limit(1);
+        return Promise.resolve({
+            current: current ? current[0] : null,
+            next: nextone ? nextone[0] : null
+        });
+    }
 
 
 
