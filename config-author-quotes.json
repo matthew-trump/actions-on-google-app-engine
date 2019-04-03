@@ -4,15 +4,14 @@
         "entity": "quotes",
         "start": "start",
         "defaultStartOffsetMinutes": 10,
-        "selectors": [
+        "fields": [
             {
-                "entity": "authors",
-                "label": "name",
-                "type": "foreignKey",
                 "name": "author",
+                "foreignKey": "authors",
                 "required": false,
                 "default": 0,
-                "nullValue": "any"
+                "nullValue": "any",
+                "label": "name"
             },
             {
                 "type": "quantity",
@@ -65,9 +64,25 @@
             "add": true,
             "enablement": "status",
             "defaultEnabled": 1,
+            "filter": [
+                {
+                    "entity": "authors",
+                    "field": "author",
+                    "label": "name",
+                    "all": true
+                }
+            ],
+            "search": {
+                "field": "text"
+            },
             "fields": [
                 {
                     "name": "text",
+                    "input": {
+                        "type": "textarea",
+                        "rows": "5",
+                        "cols": "60"
+                    },
                     "required": true,
                     "editable": true
                 },
