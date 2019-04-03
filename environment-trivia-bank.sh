@@ -3,7 +3,7 @@ export ENVIRONMENT="local"
 export PORT=8084
 export CLOUD_SQL_INSTANCE_IDENTIFIER=""
 export ACCESSOR_PATH="../../../data-accessor"
-export CONFIG_SCHEMA_PATH="./config-trivia-bank.json"
+export CONFIG_SCHEMA_PATH="../../config-trivia-bank.json"
 
 export SQL_DB_USERNAME="root"
 export SQL_DB_PASSWORD="eagle1"

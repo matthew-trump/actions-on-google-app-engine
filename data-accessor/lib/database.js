@@ -14,7 +14,8 @@ const database = class {
     constructor() {
         this.marker = 1;
     }
-    initialize() {
+    initialize(schema) {
+        this.schema = schema;
         this.db = this.connect();
     }
     connect() {
@@ -64,26 +65,39 @@ const database = class {
         }
         return this.db(table).insert(entities);
     }
-    addScheduleItems(table, item) {
+    addScheduleItems(item) {
+        const table = this.schema.schedule.table;
         if (!item) {
             return Promise.resolve(0);
         }
         return this.db(table).insert(item);
     }
-    getSchedule(table, queryObj) {
+    getSchedule(queryObj) {
+        const table = this.schema.schedule.table;
         let dbQuery = this.db(table)
         if (queryObj.limit) {
             dbQuery = dbQuery.limit(parseInt(queryObj.limit));
         }
         return dbQuery;
     }
-    updateScheduleItem(table, id, update) {
+    getScheduleItem(queryObj) {
+        const table = this.schema.schedule.table;
+        let dbQuery = this.db(table)
+        if (queryObj.limit) {
+            dbQuery = dbQuery.limit(parseInt(queryObj.limit));
+        }
+        return dbQuery;
+    }
+    updateScheduleItem(id, update) {
+        const table = this.schema.schedule.table;
         return this.db(table).where({ id: id }).update(update);
     }
-    deleteScheduledItem(table, id) {
+    deleteScheduledItem(tid) {
+        const table = this.schema.schedule.table;
         return this.db(table).where({ id: id }).del();
     }
-    async getCurrentScheduleItem(table, ) {
+    async getCurrentScheduleItem() {
+        const table = this.schema.schedule.table;
         const datetimeNow = (new Date()).toISOString().slice(0, 19).replace('T', ' ');
         const current = await this.db(table).where('start', '<', datetimeNow).orderBy('start', 'DESC').limit(1);
         const nextone = await this.db(table).where('start', '>', datetimeNow).orderBy('start', 'ASC').limit(1);

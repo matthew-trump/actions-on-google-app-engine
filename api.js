@@ -6,7 +6,7 @@ const router = express.Router();
 
 const { DataAccessor } = require('./data-accessor');
 
-const CONFIG_SCHEMA_PATH = process.env.CONFIG_SCHEMA_PATH;
+
 const ADMIN_SESSION_EXPIRY_IN_SECONDS = process.env.ADMIN_SESSION_EXPIRY_IN_SECONDS || 3600 * 24 * 30;
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -16,9 +16,8 @@ const RSA_PUBLIC_KEY_PATH = process.env.RSA_PUBLC_KEY_PATH || './keys/jwtRS256.k
 const RSA_PRIVATE_KEY = fs.readFileSync(RSA_PRIVATE_KEY_PATH);
 const RSA_PUBLIC_KEY = fs.readFileSync(RSA_PUBLIC_KEY_PATH);
 
-const SCHEMA = require(CONFIG_SCHEMA_PATH);
 
-console.log(SCHEMA);
+
 
 const JWT_ALGORITHM = "RS256";
 const HTTP_UNAUTHORIZED = 401;
@@ -110,7 +109,6 @@ router.get('/database/ping',
     (req, res) => {
         DataAccessor.database.getPings(req.body.key).then(
             (result) => {
-                //console.log(result);
                 res.status(200).json({ result: result });
             },
             (err) => {
@@ -124,22 +122,21 @@ router.get('/config/schema',
     checkIfAuthenticated,
     handleUnauthorizedError,
     function (_, res) {
-        res.status(200).json(SCHEMA);
+        res.status(200).json(DataAccessor.getSchema());
     });
 
 router.post('/schedule',
     checkIfAuthenticated,
     handleUnauthorizedError,
     asyncMiddleware(async (req, res) => {
-        let config = SCHEMA.schedule;
         const items = req.body.items.map((item) => {
-            return getScheduleItemDatabaseObjectFromRequest(config, item);
+            return getScheduleItemDatabaseObjectFromRequest(item);
         });
-        const result = await DataAccessor.database.addScheduleItems(config.table, items);
+        const result = await DataAccessor.database.addScheduleItems(items);
         res.status(200).json({ result: result });
     }));
 
-const getScheduleItemDatabaseObjectFromRequest = (config, update) => {
+const getScheduleItemDatabaseObjectFromRequest = (cupdate) => {
     const obj = Object.assign({}, update);
     return obj;
 }
@@ -148,11 +145,8 @@ router.put('/schedule/:id',
     checkIfAuthenticated,
     handleUnauthorizedError,
     (req, res) => {
-        let config = SCHEMA.schedule;
-
-        const update = getScheduleItemDatabaseObjectFromRequest(config, req.body.update);
-        DataAccessor.database.updateScheduleItem(config.table,
-            req.params.id, update
+        const update = getScheduleItemDatabaseObjectFromRequest(req.body.update);
+        DataAccessor.database.updateScheduleItem(req.params.id, update
         ).then(
             _ => {
                 res.status(200).json({});
@@ -169,7 +163,7 @@ router.delete("/schedule/:id",
     checkIfAuthenticated,
     handleUnauthorizedError,
     asyncMiddleware(async (req, res) => {
-        await DataAccessor.database.deleteScheduledItem(SCHEMA.schedule.table, parseInt(req.params.id));
+        await DataAccessor.database.deleteScheduledItem(parseInt(req.params.id));
         res.send({})
     }
     ));
@@ -179,9 +173,8 @@ router.delete("/schedule/:id",
 router.get('/current',
     checkIfAuthenticated,
     handleUnauthorizedError,
-    asyncMiddleware(async (req, res) => {
-        let config = SCHEMA.schedule;
-        const currentWithNext = await DataAccessor.database.getCurrentScheduleItem(config.table);
+    asyncMiddleware(async (_, res) => {
+        const currentWithNext = await DataAccessor.database.getCurrentScheduleItem();
         res.status(200).json(currentWithNext);
     }));
 
@@ -189,13 +182,12 @@ router.get('/schedule',
     checkIfAuthenticated,
     handleUnauthorizedError,
     asyncMiddleware(async (req, res) => {
-        let config = SCHEMA.schedule;
         const queryObj = {}
         if (req.query.limit) {
             queryObj.limit = req.query.limit;
         }
         const offset = parseInt(req.query.offset);
-        const dbQuery = DataAccessor.database.getSchedule(config.table, queryObj).orderBy('start', 'DESC');
+        const dbQuery = DataAccessor.database.getSchedule(queryObj).orderBy('start', 'DESC');
         const total = await dbQuery.clone().count();
         const items = await (offset > 0 ? dbQuery.offset(offset) : dbQuery);
         queryObj.offset = offset;
@@ -206,11 +198,8 @@ router.get('/entities/:plural',
     checkIfAuthenticated,
     handleUnauthorizedError,
     asyncMiddleware(async (req, res) => {
-        let config = SCHEMA.entities.filter(e => { return e.plural === req.params.plural });
-
-        if (config.length > 0) {
-            const entityConfig = config[0];
-
+        let entityConfig = DataAccessor.getEntityConfig(req.params.plural);
+        if (entityConfig) {
             const queryObj = {}
             if (req.query.limit) {
                 queryObj.limit = req.query.limit;
@@ -246,9 +235,8 @@ router.put('/entities/:plural/:id',
     checkIfAuthenticated,
     handleUnauthorizedError,
     (req, res) => {
-        let config = SCHEMA.entities.filter(e => { return e.plural === req.params.plural });
-        if (config.length > 0) {
-            const entityConfig = config[0];
+        let entityConfig = DataAccessor.getEntityConfig(req.params.plural);
+        if (entityConfig) {
             const update = getEntityDatabaseObjectFromRequest(entityConfig, req.body.update);
             DataAccessor.database.updateEntity(entityConfig.table,
                 req.params.id, update
@@ -279,9 +267,8 @@ router.post('/entities/:plural',
     checkIfAuthenticated,
     handleUnauthorizedError,
     asyncMiddleware(async (req, res) => {
-        let config = SCHEMA.entities.filter(e => { return e.plural === req.params.plural });
-        if (config.length > 0) {
-            const entityConfig = config[0];
+        let entityConfig = DataAccessor.getEntityConfig(req.params.plural);
+        if (entityConfig) {
             const entities = req.body.entities.map((entity) => {
                 return getEntityDatabaseObjectFromRequest(entityConfig, entity);
             });

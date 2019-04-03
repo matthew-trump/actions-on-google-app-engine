@@ -3,7 +3,7 @@ export ENVIRONMENT="local"
 export PORT=8082
 export CLOUD_SQL_INSTANCE_IDENTIFIER=""
 export ACCESSOR_PATH="../../../data-accessor"
-export CONFIG_SCHEMA_PATH="./config-schema.json"
+export CONFIG_SCHEMA_PATH="../../config-author-quotes.json"
 
 export SQL_DB_USERNAME="root"
 export SQL_DB_PASSWORD="eagle1"
