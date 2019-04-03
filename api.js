@@ -136,7 +136,7 @@ router.post('/schedule',
         res.status(200).json({ result: result });
     }));
 
-const getScheduleItemDatabaseObjectFromRequest = (cupdate) => {
+const getScheduleItemDatabaseObjectFromRequest = (update) => {
     const obj = Object.assign({}, update);
     return obj;
 }
