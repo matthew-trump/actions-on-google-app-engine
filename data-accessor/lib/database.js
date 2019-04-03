@@ -85,9 +85,9 @@ const database = class {
         const items = await this.db(table).where({ id: id });
         if (items) {
             const item = items[0];
-            return item;
+            return { item: item };
         }
-        return null;
+        return { item: null };
     }
     updateScheduleItem(id, update) {
         const table = this.schema.schedule.table;
@@ -103,7 +103,7 @@ const database = class {
         const current = await this.db(table).where('start', '<', datetimeNow).orderBy('start', 'DESC').limit(1);
         const nextone = await this.db(table).where('start', '>', datetimeNow).orderBy('start', 'ASC').limit(1);
         const obj = {
-            current: current ? current[0] : null,
+            item: current ? current[0] : null,
             next: nextone ? nextone[0] : null
         };
         return obj;

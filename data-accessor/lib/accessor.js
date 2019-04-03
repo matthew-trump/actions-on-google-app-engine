@@ -61,8 +61,9 @@ const accessor = class {
         } else {
             console.log("LOADING SCHEDULED ITEM", id ? id : 'CURRENT');
         }
-        const item = id ? await this.database.getScheduleItem(id) : (await this.database.getCurrentScheduleItem()).current;
-        if (item) {
+        const itemObj = id ? await this.database.getScheduleItem(id) : await this.database.getCurrentScheduleItem();
+        if (itemObj) {
+            const item = itemObj.item;
             const key = this.getScheduleKey(item);
             this.currentKey = key;
             if (options.forceReload || !this.scheduleItemCache[key]) {
