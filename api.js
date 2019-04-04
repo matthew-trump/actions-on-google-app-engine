@@ -139,7 +139,33 @@ router.post('/schedule',
 
 const getScheduleItemDatabaseObjectFromRequest = (update) => {
     const obj = Object.assign({}, update);
+    const poolField = DataAccessor.getSchedulePoolField();
+    if (poolField && poolField !== 'pool') {
+        obj[poolField] = update.pool;
+        delete obj.pool;
+    }
+    const numberField = DataAccessor.getScheduleNumberField();
+    if (numberField && numberField !== 'number') {
+        obj[numberField] = update.number;
+        delete obj.number;
+    }
     return obj;
+}
+
+const getScheduleItemFromDatabaseObject = (obj) => {
+    if (!obj) return null;
+    const item = Object.assign({}, obj);
+    const poolField = DataAccessor.getSchedulePoolField();
+    if (poolField && poolField !== 'pool') {
+        item.pool = obj[poolField];
+        delete item[poolField];
+    }
+    const numberField = DataAccessor.getScheduleNumberField();
+    if (numberField && numberField !== 'number') {
+        item.number = obj[numberField];
+        delete item[numberField];
+    }
+    return item;
 }
 
 router.put('/schedule/:id',
@@ -175,8 +201,12 @@ router.get('/current',
     checkIfAuthenticated,
     handleUnauthorizedError,
     asyncMiddleware(async (_, res) => {
-        const currentWithNext = await DataAccessor.database.getCurrentScheduleItem();
-        res.status(200).json(currentWithNext);
+        const objectSet = await DataAccessor.database.getCurrentScheduleItem();
+        const currentWithNext = {
+            item: getScheduleItemFromDatabaseObject(objectSet.item),
+            next: getScheduleItemFromDatabaseObject(objectSet.next)
+        }
+        res.status(200).json(getScheduleItemFromDatabaseObject(currentWithNext));
     }));
 
 router.get('/schedule',
@@ -190,7 +220,8 @@ router.get('/schedule',
         const offset = parseInt(req.query.offset);
         const dbQuery = DataAccessor.database.getSchedule(queryObj).orderBy('start', 'DESC');
         const total = await dbQuery.clone().count();
-        const items = await (offset > 0 ? dbQuery.offset(offset) : dbQuery);
+        const objects = await (offset > 0 ? dbQuery.offset(offset) : dbQuery);
+        const items = objects.map(object => getScheduleItemFromDatabaseObject(object));
         queryObj.offset = offset;
         res.status(200).json({ query: queryObj, total: total[0]["count(*)"], returned: items.length, items: items });
     }));
