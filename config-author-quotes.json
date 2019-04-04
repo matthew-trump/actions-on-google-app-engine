@@ -2,7 +2,11 @@
     "schedule": {
         "table": "schedule",
         "entity": "quotes",
+        "number": "number",
+        "pool": "pool",
         "start": "start",
+        "ordering": null,
+        "direction": null,
         "defaultStartOffsetMinutes": 10,
         "fields": [
             {

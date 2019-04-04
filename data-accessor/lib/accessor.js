@@ -1,11 +1,22 @@
 const { Database } = require('./database');
+
 const CONFIG_SCHEMA_PATH = process.env.CONFIG_SCHEMA_PATH;
-const SCHEMA = require(CONFIG_SCHEMA_PATH);
-const SCHEDULE_KEY_SEPARATOR = process.env.SCHEDULE_KEY_SEPARTOR || ":";
-const SCHEDULE_KEY_PREFIX = process.env.SCHEDULE_KEY_SEPARTOR || "SKEY";
+
 const DEFAULT_NUMBER_FIELD = "number";
 const DEFAULT_POOL_FIELD = "pool";
 const DEFAULT_START_FIELD = "start";
+
+const SCHEDULE_KEY_SEPARATOR = process.env.SCHEDULE_KEY_SEPARTOR || ":";
+const SCHEDULE_KEY_PREFIX = process.env.SCHEDULE_KEY_PREFIX || "SKEY::";
+const LOADER_TIMER_INTERVAL_SECONDS = process.env.LOADER_TIMER_INTERVAL_SECONDS;
+
+const DEFAULT_ORDERING_FIELD = process.env.DEFAULT_ORDERING_FIELD;
+const DEFAULT_ORDERING_DIRECTION = process.env.DEFAULT_ORDERING_DIRECTION || 1;
+
+
+
+const SCHEMA = require(CONFIG_SCHEMA_PATH);
+
 
 const accessor = class {
     constructor() {
@@ -15,13 +26,35 @@ const accessor = class {
             this.foreignKeyEntityCache = {};
             this.entityCacheMap = {};
             this.scheduleItemCache = {};
-            this.loadScheduledEntityPool(0, {}, null);
+            this.poolEntryCache = {};
+            this.loadCurrentScheduled();
+            this.resetLoaderTimer()
         } else {
             console.log("NO DATABASE CONNECTION CONFIGURED");
         }
     }
+    async loadCurrentScheduled() {
+        this.loadScheduledEntityPool(0, {}, null);
+    }
+
+    resetLoaderTimer() {
+        if (this.loaderTimer) {
+            clearInterval(this.loaderTimer);
+        }
+        if (LOADER_TIMER_INTERVAL_SECONDS && LOADER_TIMER_INTERVAL_SECONDS > 0) {
+            const timeout = LOADER_TIMER_INTERVAL_SECONDS * 1000;
+            console.log("LOADER_TIMER_INTERVAL_SECONDS", timeout);
+            this.loaderTimer = setInterval(() => {
+                this.loadCurrentScheduled()
+            }, timeout);
+        }
+    }
     getSchema() {
         return SCHEMA;
+    }
+    getScheduleFieldConfig(name) {
+        const field = SCHEMA.schedule.fields.filter(field => field.name === name);
+        return field ? field[0] : null;
     }
     getEntityConfig(plural) {
         const config = SCHEMA.entities.filter(e => { return e.plural === plural });
@@ -42,14 +75,26 @@ const accessor = class {
     getScheduleStartField() {
         return SCHEMA.schedule.start || DEFAULT_START_FIELD;
     }
+    parseScheduleKey(key) {
+        const obj = {}
+        const elems = key.substring(SCHEDULE_KEY_PREFIX.length).split(SCHEDULE_KEY_SEPARATOR);
+        obj.number = parseInt(elems.pop());
+        const fkeys = elems.split(SCHEDULE_KEY_SEPARATOR);
+        this.getScheduleForeignKeyConfigs().map((entityConfig, i) => {
+            obj[entityConfig.name] = i < fkeys.length ? parseInt(fkeys[i]) : entityConfig.default;
+        })
+        return obj;
+    }
     getScheduleKey(item) {
-        return SCHEDULE_KEY_PREFIX + SCHEDULE_KEY_SEPARATOR + (this.getScheduleForeignKeyConfigs().map(entityConfig => {
+        return SCHEDULE_KEY_PREFIX + (this.getScheduleForeignKeyConfigs().map(entityConfig => {
             return item[entityConfig.name]
         }).join(SCHEDULE_KEY_SEPARATOR)) + SCHEDULE_KEY_SEPARATOR + item[this.getScheduleNumberField()];
     }
     getPoolObject(item, key) {
+        const entity = this.getSchema().schedule.entity;
         const pObj = {
             key: key,
+            entity: entity,
             id: item.id || 0, //0 value for non-scheduled
             number: item[this.getScheduleNumberField()],
             pool: item[this.getSchedulePoolField()],
@@ -136,19 +181,98 @@ const accessor = class {
         entities.map(entity => {
             if (options.forceReload || !map[entity.id]) {
                 map[entity.id] = {
-                    entity: entity,
+                    item: entity,
                     schedule: pObj.id,
                     key: pObj.key,
                     date: new Date()
                 }
             }
         })
+        this.poolEntryCache[pObj.id] = entities.reduce((obj, entity) => {
+            obj.ids.push[entity.id];
+            return obj;
+        }, {
+                ids: [],
+                date: new Date()
+            })
 
     }
     async loadScheduledEntities(pObj, options) {
         await this.loadForeignKeyEntities(pObj, options);
         await this.loadPoolEntities(pObj, options);
     }
+
+
+    selectPoolEntries(pObj, excluded) {
+        const map = this.entityCacheMap[this.getSchema().schedule.entity];
+
+        const entries = this.poolEntryCache[pObj.key];
+        const available = excluded ? entries.ids.filter(id => {
+            return excluded.indexOf(id) == -1;
+        }) : pObj.ids;
+
+        const numAvailble = available.length;
+        let numEntries = pObj.number;
+
+        const indices = new Set();
+        if (numEntries > numAvailble) {
+            numEntries = numAvailble;
+        }
+        for (let i = 0; i < numEntries; i++) {
+            const index = Math.floor(Math.random() * numAvailble);
+            if (indices.has(index)) {
+                i--;
+                continue;
+            }
+            indices.add(index);
+        }
+
+
+        let selected = available.filter((_, i) => {
+            return indices.has(i);
+        });
+
+        const orderingField = SCHEMA.schedule.ordering;
+        if (orderingField) {
+            const orderingDirection = SCHEMA.schedule.direction;
+            selected.sort((qa, qb) => {
+                if (qa[forderingField] > qb[orderingField])
+                    return orderingDirection > 0 ? -1 : 1;
+                if (qa[orderingField] < qb[orderingField])
+                    return orderingDirection > 0 ? 1 : -1;
+                let randomized = (.5 - Math.random()) > 0 ? 1 : -1;
+                return randomized;
+            });
+        }
+
+        return selected;
+    }
+
+    generateRound(pObj, selected) {
+        const round = {};
+        round.entity = pObj.entity;
+        round.key = pObj.key;
+        round.index = 0;
+        round.items = selected;
+
+
+
+        if (pObj.foreignKeys) {
+            Object.keys(pObj.foreignKeys).map((plural) => {
+                const id = pObj.foreignKeys[plural];
+                const config = this.getEntityConfig(plural);
+                const name = config.name;
+                const entity = this.foreignKeyEntityCache[plural][id];
+                round[name] = {
+                    id: id,
+                    name: entity[config.label]
+                }
+            })
+        }
+
+        return round;
+    }
+
 
 }
 const DataAccessor = new accessor();
