@@ -2,9 +2,6 @@ const { Database } = require('./database');
 
 const CONFIG_SCHEMA_PATH = process.env.CONFIG_SCHEMA_PATH;
 
-const DEFAULT_NUMBER_FIELD = "number";
-const DEFAULT_POOL_FIELD = "pool";
-const DEFAULT_START_FIELD = "start";
 
 const SCHEDULE_KEY_SEPARATOR = process.env.SCHEDULE_KEY_SEPARTOR || ":";
 const SCHEDULE_KEY_PREFIX = process.env.SCHEDULE_KEY_PREFIX || "SKEY::";
@@ -66,15 +63,7 @@ const accessor = class {
         });
         return fields;
     }
-    getScheduleNumberField() {
-        return SCHEMA.schedule.number || DEFAULT_NUMBER_FIELD;
-    }
-    getSchedulePoolField() {
-        return SCHEMA.schedule.pool || DEFAULT_POOL_FIELD;
-    }
-    getScheduleStartField() {
-        return SCHEMA.schedule.start || DEFAULT_START_FIELD;
-    }
+
     parseScheduleKey(key) {
         const obj = {}
         const elems = key.substring(SCHEDULE_KEY_PREFIX.length).split(SCHEDULE_KEY_SEPARATOR);
@@ -86,9 +75,10 @@ const accessor = class {
         return obj;
     }
     getScheduleKey(item) {
+        console.log(item)
         return SCHEDULE_KEY_PREFIX + (this.getScheduleForeignKeyConfigs().map(entityConfig => {
             return item[entityConfig.name]
-        }).join(SCHEDULE_KEY_SEPARATOR)) + SCHEDULE_KEY_SEPARATOR + item[this.getScheduleNumberField()];
+        }).join(SCHEDULE_KEY_SEPARATOR)) + SCHEDULE_KEY_SEPARATOR + item.number;
     }
     getPoolObject(item, key) {
         const entity = this.getSchema().schedule.entity;
@@ -96,8 +86,8 @@ const accessor = class {
             key: key,
             entity: entity,
             id: item.id || 0, //0 value for non-scheduled
-            number: item[this.getScheduleNumberField()],
-            pool: item[this.getSchedulePoolField()],
+            number: item.number,
+            pool: item.pool,
             foreignKeys: this.getScheduleForeignKeyConfigs().reduce((obj, fkConfig) => {
                 if (typeof item[fkConfig.name] !== 'undefined') {
                     obj[fkConfig.foreignKey] = item[fkConfig.name]

@@ -130,49 +130,18 @@ router.post('/schedule',
     checkIfAuthenticated,
     handleUnauthorizedError,
     asyncMiddleware(async (req, res) => {
-        const items = req.body.items.map((item) => {
-            return getScheduleItemDatabaseObjectFromRequest(item);
-        });
+        const items = req.body.items;
         const result = await DataAccessor.database.addScheduleItems(items);
         res.status(200).json({ result: result });
     }));
 
-const getScheduleItemDatabaseObjectFromRequest = (update) => {
-    const obj = Object.assign({}, update);
-    const poolField = DataAccessor.getSchedulePoolField();
-    if (poolField && poolField !== 'pool') {
-        obj[poolField] = update.pool;
-        delete obj.pool;
-    }
-    const numberField = DataAccessor.getScheduleNumberField();
-    if (numberField && numberField !== 'number') {
-        obj[numberField] = update.number;
-        delete obj.number;
-    }
-    return obj;
-}
 
-const getScheduleItemFromDatabaseObject = (obj) => {
-    if (!obj) return null;
-    const item = Object.assign({}, obj);
-    const poolField = DataAccessor.getSchedulePoolField();
-    if (poolField && poolField !== 'pool') {
-        item.pool = obj[poolField];
-        delete item[poolField];
-    }
-    const numberField = DataAccessor.getScheduleNumberField();
-    if (numberField && numberField !== 'number') {
-        item.number = obj[numberField];
-        delete item[numberField];
-    }
-    return item;
-}
 
 router.put('/schedule/:id',
     checkIfAuthenticated,
     handleUnauthorizedError,
     (req, res) => {
-        const update = getScheduleItemDatabaseObjectFromRequest(req.body.update);
+        const update = req.body.update;
         DataAccessor.database.updateScheduleItem(req.params.id, update
         ).then(
             _ => {
@@ -201,12 +170,8 @@ router.get('/current',
     checkIfAuthenticated,
     handleUnauthorizedError,
     asyncMiddleware(async (_, res) => {
-        const objectSet = await DataAccessor.database.getCurrentScheduleItem();
-        const currentWithNext = {
-            item: getScheduleItemFromDatabaseObject(objectSet.item),
-            next: getScheduleItemFromDatabaseObject(objectSet.next)
-        }
-        res.status(200).json(getScheduleItemFromDatabaseObject(currentWithNext));
+        const currentWithNext = await DataAccessor.database.getCurrentScheduleItem();
+        res.status(200).json(currentWithNext);
     }));
 
 router.get('/schedule',
@@ -215,15 +180,14 @@ router.get('/schedule',
     asyncMiddleware(async (req, res) => {
         const queryObj = {}
         if (req.query.limit) {
-            queryObj.limit = req.query.limit;
+            queryObj.limit = parseInt(req.query.limit);
         }
-        const offset = parseInt(req.query.offset);
-        const dbQuery = DataAccessor.database.getSchedule(queryObj).orderBy('start', 'DESC');
-        const total = await dbQuery.clone().count();
-        const objects = await (offset > 0 ? dbQuery.offset(offset) : dbQuery);
-        const items = objects.map(object => getScheduleItemFromDatabaseObject(object));
-        queryObj.offset = offset;
-        res.status(200).json({ query: queryObj, total: total[0]["count(*)"], returned: items.length, items: items });
+        if (req.query.offset) {
+            queryObj.offset = parseInt(req.query.offset);
+        }
+        const count = await DataAccessor.database.getScheduleCount();
+        const result = await DataAccessor.database.getSchedule(queryObj);
+        res.status(200).json({ query: queryObj, total: count[0].total, returned: result[0].length, items: result[0] });
     }));
 
 router.get('/entities/:plural',

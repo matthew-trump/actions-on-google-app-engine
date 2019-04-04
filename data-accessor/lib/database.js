@@ -9,6 +9,11 @@ const CLOUD_SQL_INSTANCE_IDENTIFIER = process.env.CLOUD_SQL_INSTANCE_IDENTIFIER;
 
 const PING_TABLE = process.env.SQL_PING_TABLE || 'ping';
 
+const DEFAULT_NUMBER_FIELD = "number";
+const DEFAULT_POOL_FIELD = "pool";
+const DEFAULT_START_FIELD = "start";
+
+
 const database = class {
 
     constructor() {
@@ -65,35 +70,60 @@ const database = class {
         }
         return this.db(table).insert(entities);
     }
-    addScheduleItems(item) {
+    addScheduleItems(items) {
         const table = this.schema.schedule.table;
-        if (!item) {
+        if (!items) {
             return Promise.resolve(0);
         }
-        return this.db(table).insert(item);
+        return this.db(table).insert(items.map(item => this.getScheduleItemDatabaseObjectFromRequest(item)));
     }
-    getSchedule(queryObj) {
+    async getScheduleCount() {
         const table = this.schema.schedule.table;
-        let dbQuery = this.db(table)
-        if (queryObj.limit) {
-            dbQuery = dbQuery.limit(parseInt(queryObj.limit));
+        return this.db(table).count('id as total');
+    }
+    async getSchedule(queryObj) {
+        const table = this.schema.schedule.table;
+
+
+        let querys = "SELECT *"
+
+        const poolField = this.getSchedulePoolField();
+        const numberField = this.getScheduleNumberField();
+        const startField = this.getScheduleStartField();
+        if (poolField !== DEFAULT_POOL_FIELD) {
+            querys = querys + "," + poolField + ' AS ' + DEFAULT_POOL_FIELD;
         }
-        return dbQuery;
+        if (numberField !== DEFAULT_NUMBER_FIELD) {
+            querys = querys + "," + numberField + ' AS ' + DEFAULT_NUMBER_FIELD;
+        }
+        querys = querys + " FROM " + table;
+        querys = querys + " ORDER BY " + startField + " DESC"
+        if (queryObj.limit) {
+            querys = querys + " LIMIT " + queryObj.limit;
+        }
+        if (typeof queryObj.offset !== undefined) {
+            querys = querys + " OFFSET " + queryObj.offset;
+        }
+        return this.db.raw(querys);
+
     }
     async getScheduleItem(id) {
         const table = this.schema.schedule.table;
         const items = await this.db(table).where({ id: id });
         if (items) {
             const item = items[0];
-            return { item: item };
+            return { item: getScheduleItemFromDatabaseObject(item) };
         }
         return { item: null };
     }
     updateScheduleItem(id, update) {
         const table = this.schema.schedule.table;
-        return this.db(table).where({ id: id }).update(update);
+        //console.log("RECEIVED", update);
+        const obj = this.getScheduleItemDatabaseObjectFromRequest(update);
+        //console.log("TRANSFORMED", obj);
+        return this.db(table).where({ id: id }).update(obj);
     }
-    deleteScheduledItem(tid) {
+    deleteScheduledItem(id) {
         const table = this.schema.schedule.table;
         return this.db(table).where({ id: id }).del();
     }
@@ -103,10 +133,53 @@ const database = class {
         const current = await this.db(table).where('start', '<', datetimeNow).orderBy('start', 'DESC').limit(1);
         const nextone = await this.db(table).where('start', '>', datetimeNow).orderBy('start', 'ASC').limit(1);
         const obj = {
-            item: current ? current[0] : null,
-            next: nextone ? nextone[0] : null
+            item: current ? this.getScheduleItemFromDatabaseObject(current[0]) : null,
+            next: nextone ? this.getScheduleItemFromDatabaseObject(nextone[0]) : null
         };
         return obj;
+    }
+    getScheduleNumberField() {
+        return this.schema.schedule.number || DEFAULT_NUMBER_FIELD;
+    }
+    getSchedulePoolField() {
+        return this.schema.schedule.pool || DEFAULT_POOL_FIELD;
+    }
+    getScheduleStartField() {
+        return this.schema.schedule.start || DEFAULT_START_FIELD;
+    }
+    getScheduleItemDatabaseObjectFromRequest(update) {
+
+        const obj = Object.assign({}, update);
+
+        const poolField = this.getSchedulePoolField();
+        if (poolField && poolField !== 'pool') {
+            obj[poolField] = update.pool;
+            delete obj.pool;
+        }
+
+        const numberField = this.getScheduleNumberField();
+        if (numberField && numberField !== 'number') {
+            obj[numberField] = update.number;
+            delete obj.number;
+        }
+
+        return obj;
+    }
+
+    getScheduleItemFromDatabaseObject(obj) {
+        if (!obj) return null;
+        const item = Object.assign({}, obj);
+        const poolField = this.getSchedulePoolField();
+        if (poolField && poolField !== 'pool') {
+            item.pool = obj[poolField];
+            delete item[poolField];
+        }
+        const numberField = this.getScheduleNumberField();
+        if (numberField && numberField !== 'number') {
+            item.number = obj[numberField];
+            delete item[numberField];
+        }
+        return item;
     }
 
 }
