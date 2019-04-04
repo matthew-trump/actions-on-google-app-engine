@@ -43,16 +43,17 @@ const asyncMiddleware = fn =>
 router.post('/login', (req, res) => {
     const username = req.body.username;
     const password = req.body.password;
+    const expiresIn = parseInt(ADMIN_SESSION_EXPIRY_IN_SECONDS);
     if (validateUsernameAndPassword(username, password)) {
         const userId = getUserId(username);
         const jwtBearerToken = jwt.sign({}, RSA_PRIVATE_KEY, {
             algorithm: JWT_ALGORITHM,
-            expiresIn: ADMIN_SESSION_EXPIRY_IN_SECONDS,
+            expiresIn: expiresIn,
             subject: userId
         });
         res.status(200).json({
             idToken: jwtBearerToken,
-            expiresIn: ADMIN_SESSION_EXPIRY_IN_SECONDS,
+            expiresIn: expiresIn,
             subject: userId,
             username: username
         });
