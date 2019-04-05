@@ -54,7 +54,9 @@ const accessor = class {
         return field ? field[0] : null;
     }
     getEntityConfig(plural) {
+
         const config = SCHEMA.entities.filter(e => { return e.plural === plural });
+
         return config ? config[0] : null;
     }
     getScheduleForeignKeyConfigs() {
@@ -90,11 +92,16 @@ const accessor = class {
             pool: item.pool,
             foreignKeys: this.getScheduleForeignKeyConfigs().reduce((obj, fkConfig) => {
                 if (typeof item[fkConfig.name] !== 'undefined') {
-                    obj[fkConfig.foreignKey] = item[fkConfig.name]
+                    obj[fkConfig.foreignKey] = item[fkConfig.name];
+                    /** {
+                        id: item[fkConfig.name],
+                        name: this.entityCacheMap[fkConfig.plural][item[fkConfig.name]][fkConfig.label]
+                    }*/
                 }
                 return obj;
             }, {})
         }
+        console.log(pObj);
         return pObj;
     }
     async loadScheduledEntityPool(id, options, callback) {
@@ -168,18 +175,21 @@ const accessor = class {
             query.limit = pObj.pool
         }
         const entities = await this.database.getEntities(config.table, query);
+
         entities.map(entity => {
             if (options.forceReload || !map[entity.id]) {
                 map[entity.id] = {
-                    item: entity,
+                    item: Object.assign({}, entity),
                     schedule: pObj.id,
                     key: pObj.key,
                     date: new Date()
                 }
             }
         })
-        this.poolEntryCache[pObj.id] = entities.reduce((obj, entity) => {
-            obj.ids.push[entity.id];
+
+
+        this.poolEntryCache[pObj.key] = entities.reduce((obj, entity) => {
+            obj.ids.push(entity.id);
             return obj;
         }, {
                 ids: [],
@@ -194,12 +204,15 @@ const accessor = class {
 
 
     selectPoolEntries(pObj, excluded) {
+
         const map = this.entityCacheMap[this.getSchema().schedule.entity];
 
         const entries = this.poolEntryCache[pObj.key];
+
         const available = excluded ? entries.ids.filter(id => {
             return excluded.indexOf(id) == -1;
-        }) : pObj.ids;
+        }) : entries.ids;
+
 
         const numAvailble = available.length;
         let numEntries = pObj.number;

@@ -1,4 +1,4 @@
-const { DataAccessor } = require('./data-accessor');
+const DataAccessor = require('./accessor');
 
 const schema = DataAccessor.getSchema();
 const ROUND_FIELD = schema.round && schema.round.name ? schema.round.name : 'round';  //quiz
@@ -7,7 +7,7 @@ const SHOWN_FIELD = schema.round && schema.round.shown ? schema.round.shown : 's
 const ALLOW_USER_STORAGE_ACCESS = process.env.ALLOW_USER_STORAGE_ACCESS || 0;
 const SESSION_NO_REPEAT_ENTRIES = process.env.SESSION_NO_REPEAT_ENTRIES > 0;
 
-const Rounds = class {
+const rounds = class {
     constructor() {
     }
     async startRound(conv, options = {}) {
@@ -57,7 +57,42 @@ const Rounds = class {
             const selected = DataAccessor.selectPoolEntries(pObj, excluded);
             conv.data[ROUND_FIELD] = DataAccessor.generateRound(pObj, selected);
             conv.data[ROUND_FIELD].key = key;
-            return Promise.resolve(selected);
+
+
+
+            if (pObj.foreignKeys) {
+                Object.keys(pObj.foreignKeys).map(plural => {
+                    const fkEntityConfig = DataAccessor.getEntityConfig(plural);
+                    const value = pObj.foreignKeys[plural];
+                    const fkObj = {
+                        id: value,
+                        name: DataAccessor.foreignKeyEntityCache[plural][value].name
+                    }
+                    conv.data[ROUND_FIELD][fkEntityConfig.name] = fkObj;
+                })
+            }
+
+            const items = selected.map((id) => {
+                return DataAccessor.entityCacheMap[pObj.entity]["" + id + ""]
+            }).map((obj) => {
+                const item = Object.assign({}, obj.item);
+                return Object.keys(pObj.foreignKeys).map(plural => {
+
+                    const fkEntityConfig = DataAccessor.getEntityConfig(plural);
+
+                    const value = item[fkEntityConfig.name];
+
+                    const fkObj = {
+                        id: value,
+                        name: DataAccessor.foreignKeyEntityCache[plural][value].name
+                    }
+                    item[fkEntityConfig.name] = fkObj;
+
+                    return item;
+                })
+            });
+            //return all of the items here, up front
+            return Promise.resolve(items);
         } else {
             //bad key: unable to parse load options from key
             console.log("ERROR BAD KEY", key);
@@ -76,6 +111,7 @@ const Rounds = class {
             await DataAccessor.loadPoolEntities(pObj, {});
             entry = DataAccessor.entityCacheMap[plural][id];
             if (entry) {
+
                 return entry.item;
             } else {
                 //this should never happen.
@@ -119,4 +155,5 @@ const Rounds = class {
         }
     }
 }
+Rounds = new rounds();
 module.exports = Rounds;

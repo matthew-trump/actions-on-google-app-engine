@@ -4,8 +4,7 @@ const expressJwt = require('express-jwt');
 const fs = require('fs');
 const router = express.Router();
 
-const { DataAccessor } = require('./data-accessor');
-
+const { DataAccessor, Rounds } = require('./data-accessor');
 
 const ADMIN_SESSION_EXPIRY_IN_SECONDS = process.env.ADMIN_SESSION_EXPIRY_IN_SECONDS || 3600 * 24 * 30;
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
@@ -164,7 +163,21 @@ router.delete("/schedule/:id",
     }
     ));
 
+router.get('/round',
+    checkIfAuthenticated,
+    handleUnauthorizedError,
+    asyncMiddleware(async (_, res) => {
+        const conv = { data: {} };
 
+        const items = await Rounds.startRound(conv, {});
+        const round = conv.data.round;
+        res.status(200).send(
+            {
+                round: round,
+                items: items
+            }
+        );
+    }));
 
 router.get('/current',
     checkIfAuthenticated,
