@@ -58,12 +58,13 @@ const rounds = class {
             conv.data[ROUND_FIELD] = DataAccessor.generateRound(pObj, selected);
             conv.data[ROUND_FIELD].key = key;
 
-
+            /**
 
             if (pObj.foreignKeys) {
                 Object.keys(pObj.foreignKeys).map(plural => {
                     const fkEntityConfig = DataAccessor.getEntityConfig(plural);
                     const value = pObj.foreignKeys[plural];
+                    const entity = DataAccessor.foreignKeyEntityCache[plural][value];
                     const fkObj = {
                         id: value,
                         name: DataAccessor.foreignKeyEntityCache[plural][value].name
@@ -71,12 +72,12 @@ const rounds = class {
                     conv.data[ROUND_FIELD][fkEntityConfig.name] = fkObj;
                 })
             }
-
+             */
             const items = selected.map((id) => {
                 return DataAccessor.entityCacheMap[pObj.entity]["" + id + ""]
             }).map((obj) => {
                 const item = Object.assign({}, obj.item);
-                return Object.keys(pObj.foreignKeys).map(plural => {
+                Object.keys(pObj.foreignKeys).map(plural => {
 
                     const fkEntityConfig = DataAccessor.getEntityConfig(plural);
 
@@ -88,8 +89,8 @@ const rounds = class {
                     }
                     item[fkEntityConfig.name] = fkObj;
 
-                    return item;
                 })
+                return item;
             });
             //return all of the items here, up front
             return Promise.resolve(items);

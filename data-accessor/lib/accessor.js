@@ -261,14 +261,18 @@ const accessor = class {
 
 
         if (pObj.foreignKeys) {
-            Object.keys(pObj.foreignKeys).map((plural) => {
+            Object.keys(pObj.foreignKeys).map((plural) => { //categories
                 const id = pObj.foreignKeys[plural];
-                const config = this.getEntityConfig(plural);
-                const name = config.name;
+                const entityConfig = this.getEntityConfig(pObj.entity);
+                const fkConfig = this.getEntityConfig(plural);
+                const field = entityConfig.fields.filter(field => field.name === fkConfig.name)[0]
+                const name = field.name; //category
                 const entity = this.foreignKeyEntityCache[plural][id];
+                //the category
+                console.log("XYZ", name, entity, field)
                 round[name] = {
                     id: id,
-                    name: entity[config.label]
+                    name: entity ? entity[field.label] : field.none
                 }
             })
         }
