@@ -1,6 +1,7 @@
 const DataAccessor = require('./accessor');
 
 const schema = DataAccessor.getSchema();
+
 const ROUND_FIELD = schema.round && schema.round.name ? schema.round.name : 'round';  //quiz
 const SHOWN_FIELD = schema.round && schema.round.shown ? schema.round.shown : 'shown';  //asked
 
@@ -72,6 +73,7 @@ const rounds = class {
         }
     }
     getItemFromEntity(pObj, entity) {
+        console.log("ENTITY")
         const item = Object.assign({}, entity.item);
         Object.keys(pObj.foreignKeys).map(plural => {
 
@@ -89,14 +91,15 @@ const rounds = class {
         return item;
     }
     async getNextItem(conv, options = {}) {
-
-        const index = typeof options.index !== 'undefined' ? options.index : conv.data[ROUND_ENTRY].index;
-        const plural = conv.data[ROUND_ENTRY].entity;
-        const id = conv.data[ROUND_ENTRY].items[index];
-        let entity = DataAccessor.entityCacheMap[entity][id];
+        const index = typeof options.index !== 'undefined' ? options.index : conv.data[ROUND_FIELD].index;
+        const plural = conv.data[ROUND_FIELD].entity;
+        const id = conv.data[ROUND_FIELD].items[index];
+        let entity = DataAccessor.entityCacheMap[plural][id];
+        const pObj = DataAccessor.scheduleItemCache[conv.data[ROUND_FIELD].key];
         if (!entity) {
             //might occur in edge case of load distributed schedule rollover
-            let pObj = scheduleItemCache[conv.data[ROUND_ENTRY].key];
+            //scheduleItemCache should have been instantiated at initial startup
+            let pObj = DataAccessor.scheduleItemCache[conv.data[ROUND_FIELD].key];
             await DataAccessor.loadPoolEntities(pObj, {});
             entity = DataAccessor.entityCacheMap[plural][id];
             if (!entity) {
@@ -105,8 +108,7 @@ const rounds = class {
                 return {};
             }
         }
-
-        return this.getItemFromEntity(entity.item);
+        return this.getItemFromEntity(pObj, entity);
     }
     async recordResponse(conv, data = {}) {
         return;

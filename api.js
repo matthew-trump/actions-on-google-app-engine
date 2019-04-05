@@ -171,6 +171,13 @@ router.get('/round',
 
         const items = await Rounds.startRound(conv, {});
         const round = conv.data.round;
+        /**
+         * test: if this works, then app probably actually works
+         *  const nextitem = await Rounds.getNextItem(conv, {});
+            console.log("NEXT ITEM", nextitem);
+         */
+
+
         res.status(200).send(
             {
                 round: round,
@@ -178,6 +185,8 @@ router.get('/round',
             }
         );
     }));
+
+
 
 router.get('/current',
     checkIfAuthenticated,
