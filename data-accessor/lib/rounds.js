@@ -58,39 +58,10 @@ const rounds = class {
             conv.data[ROUND_FIELD] = DataAccessor.generateRound(pObj, selected);
             conv.data[ROUND_FIELD].key = key;
 
-            /**
-
-            if (pObj.foreignKeys) {
-                Object.keys(pObj.foreignKeys).map(plural => {
-                    const fkEntityConfig = DataAccessor.getEntityConfig(plural);
-                    const value = pObj.foreignKeys[plural];
-                    const entity = DataAccessor.foreignKeyEntityCache[plural][value];
-                    const fkObj = {
-                        id: value,
-                        name: DataAccessor.foreignKeyEntityCache[plural][value].name
-                    }
-                    conv.data[ROUND_FIELD][fkEntityConfig.name] = fkObj;
-                })
-            }
-             */
             const items = selected.map((id) => {
                 return DataAccessor.entityCacheMap[pObj.entity]["" + id + ""]
             }).map((obj) => {
-                const item = Object.assign({}, obj.item);
-                Object.keys(pObj.foreignKeys).map(plural => {
-
-                    const fkEntityConfig = DataAccessor.getEntityConfig(plural);
-
-                    const value = item[fkEntityConfig.name];
-
-                    const fkObj = {
-                        id: value,
-                        name: DataAccessor.foreignKeyEntityCache[plural][value].name
-                    }
-                    item[fkEntityConfig.name] = fkObj;
-
-                })
-                return item;
+                return this.getItemFromEntity(pObj, obj);
             });
             //return all of the items here, up front
             return Promise.resolve(items);
@@ -100,26 +71,42 @@ const rounds = class {
             return Promise.reject("ERROR BAD KEY");
         }
     }
+    getItemFromEntity(pObj, entity) {
+        const item = Object.assign({}, entity.item);
+        Object.keys(pObj.foreignKeys).map(plural => {
+
+            const fkEntityConfig = DataAccessor.getEntityConfig(plural);
+
+            const value = item[fkEntityConfig.name];
+
+            const fkObj = {
+                id: value,
+                name: DataAccessor.foreignKeyEntityCache[plural][value].name
+            }
+            item[fkEntityConfig.name] = fkObj;
+
+        })
+        return item;
+    }
     async getNextItem(conv, options = {}) {
 
         const index = typeof options.index !== 'undefined' ? options.index : conv.data[ROUND_ENTRY].index;
         const plural = conv.data[ROUND_ENTRY].entity;
         const id = conv.data[ROUND_ENTRY].items[index];
-        let entry = DataAccessor.entityCacheMap[entity][id];
-        if (!entry) {
+        let entity = DataAccessor.entityCacheMap[entity][id];
+        if (!entity) {
             //might occur in edge case of load distributed schedule rollover
             let pObj = scheduleItemCache[conv.data[ROUND_ENTRY].key];
             await DataAccessor.loadPoolEntities(pObj, {});
-            entry = DataAccessor.entityCacheMap[plural][id];
-            if (entry) {
-
-                return entry.item;
-            } else {
+            entity = DataAccessor.entityCacheMap[plural][id];
+            if (!entity) {
                 //this should never happen.
                 console.log("ERROR unable to load ENTRY #354-B. RETURNINNG EMPTY ITEM", id, index);
                 return {};
             }
         }
+
+        return this.getItemFromEntity(entity.item);
     }
     async recordResponse(conv, data = {}) {
         return;
