@@ -163,7 +163,7 @@ router.delete("/schedule/:id",
     }
     ));
 
-router.get('/round',
+router.get('/instance',
     checkIfAuthenticated,
     handleUnauthorizedError,
     asyncMiddleware(async (_, res) => {
@@ -220,10 +220,14 @@ router.get('/entities/:plural',
         if (entityConfig) {
             const queryObj = {}
             if (req.query.limit) {
-                queryObj.limit = req.query.limit;
+                queryObj.limit = parseInt(req.query.limit);
             }
             if (req.query.search && entityConfig.search) {
-                queryObj.search = { field: entityConfig.search.field, value: '%' + req.query.search + '%' };
+                if (entityConfig.search.field) {
+                    queryObj.search = { field: entityConfig.search.field, value: '%' + req.query.search + '%' };
+                } else {
+                    console.log("WARNING: NO SEARCH AS entityConfig.search.field not found");
+                }
             }
             const fieldNames = entityConfig.fields.map(field => {
                 return field.name;
@@ -234,6 +238,11 @@ router.get('/entities/:plural',
                     queryObj.filter[key] = req.query[key];
                 }
             });
+            if (entityConfig.enablement && typeof req.query[entityConfig.enablement] !== 'undefined') {
+                queryObj.filter = queryObj.filter || {};
+                queryObj.filter[entityConfig.enablement] = parseInt(req.query[entityConfig.enablement])
+            }
+
             const offset = parseInt(req.query.offset);
             const dbQuery = DataAccessor.database.getEntities(entityConfig.table, queryObj);
             const total = await dbQuery.clone().count();
