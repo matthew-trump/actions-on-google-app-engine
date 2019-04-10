@@ -1,4 +1,3 @@
-const fs = require('fs');
 const SECRET_KEY = process.env.SECRET_KEY;
 
 const verifySecretKey = function (req) {
