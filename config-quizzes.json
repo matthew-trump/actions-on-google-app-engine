@@ -1,0 +1,93 @@
+{
+    "schedule": {
+        "table": "scheduled_quiz",
+        "entity": "questions",
+        "number": "numquestions",
+        "pool": "pool_size",
+        "start": "start",
+        "ordering": null,
+        "direction": null,
+        "defaultStartOffsetMinutes": 10,
+        "fields": [
+            {
+                "foreignKey": "categories",
+                "label": "name",
+                "name": "category",
+                "required": false,
+                "default": 0
+            },
+            {
+                "type": "quantity",
+                "name": "number",
+                "required": true,
+                "default": 10
+            },
+            {
+                "type": "quantity",
+                "name": "pool",
+                "required": true,
+                "default": 10
+            },
+            {
+                "type": "date",
+                "name": "startDate",
+                "placeholder": "Start date",
+                "required": true
+            },
+            {
+                "type": "hour",
+                "name": "startHour",
+                "required": true
+            },
+            {
+                "type": "minute",
+                "name": "startMinute",
+                "required": true
+            }
+        ]
+    },
+    "entities": [
+        {
+            "name": "category",
+            "plural": "categories",
+            "table": "category",
+            "fields": [
+                {
+                    "name": "name",
+                    "editable": true
+                }
+            ]
+        },
+        {
+            "name": "question",
+            "plural": "questions",
+            "table": "question",
+            "enablement": "status",
+            "defaultEnabled": 1,
+            "filter": [
+                {
+                    "entity": "categories",
+                    "field": "category",
+                    "label": "name",
+                    "all": true
+                }
+            ],
+            "search": {
+                "field": "text"
+            },
+            "fields": [
+                {
+                    "name": "text",
+                    "editable": true
+                },
+                {
+                    "name": "category",
+                    "editable": true,
+                    "foreignKey": "categories",
+                    "label": "name",
+                    "none": "General"
+                }
+            ]
+        }
+    ]
+}
