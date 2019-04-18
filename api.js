@@ -1,92 +1,17 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const expressJwt = require('express-jwt');
-const fs = require('fs');
 const router = express.Router();
-
+const asyncMiddleware = require('./async');
 const { DataAccessor, Rounds } = require('./data-accessor');
-
-const ADMIN_SESSION_EXPIRY_IN_SECONDS = process.env.ADMIN_SESSION_EXPIRY_IN_SECONDS || 3600 * 24 * 30;
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-const RSA_PRIVATE_KEY_PATH = process.env.RSA_PRIVATE_KEY_PATH || './keys/jwtRS256.key';
-const RSA_PUBLIC_KEY_PATH = process.env.RSA_PUBLC_KEY_PATH || './keys/jwtRS256.key.pub';
-
-const RSA_PRIVATE_KEY = fs.readFileSync(RSA_PRIVATE_KEY_PATH);
-const RSA_PUBLIC_KEY = fs.readFileSync(RSA_PUBLIC_KEY_PATH);
-
-const JWT_ALGORITHM = "RS256";
-const HTTP_UNAUTHORIZED = 401;
-
-const handleUnauthorizedError = (err, _, res, next) => {
-    if (err.status == HTTP_UNAUTHORIZED) {
-        return res.status(HTTP_UNAUTHORIZED).json({ error: "Invalid or missing Authorization key" });
-    }
-    next();
-}
-const checkIfAuthenticated = expressJwt({
-    secret: RSA_PUBLIC_KEY,
-    errorOnFailedAuth: false
-});
-
-const asyncMiddleware = fn =>
-    (req, res, next) => {
-        Promise.resolve(fn(req, res, next))
-            .catch(next);
-    };
-
-router.post('/login', (req, res) => {
-    const username = req.body.username;
-    const password = req.body.password;
-    const expiresIn = parseInt(ADMIN_SESSION_EXPIRY_IN_SECONDS);
-    if (validateUsernameAndPassword(username, password)) {
-        const userId = getUserId(username);
-        const jwtBearerToken = jwt.sign({}, RSA_PRIVATE_KEY, {
-            algorithm: JWT_ALGORITHM,
-            expiresIn: expiresIn,
-            subject: userId
-        });
-        res.status(200).json({
-            idToken: jwtBearerToken,
-            expiresIn: expiresIn,
-            subject: userId,
-            username: username
-        });
-    } else {
-        res.status(401).json({ message: "LOGIN UNSUCCESSFUL" });
-    }
-
-});
-
-/** 
- * demo has a single admin user and password
- * for multiple admins, hook this up to database or use third-party service
-*/
-const validateUsernameAndPassword = function (username, password) {
-    return (username === ADMIN_USERNAME && password === ADMIN_PASSWORD);
-}
-/**
- *  demo has static value for single admin user.
- **/
-const getUserId = function (_) {
-    return "" + 1001; //must return a string value for jwt
-}
 
 router.get('/', (_, res) => {
     res.status(200).json({ message: "TEST API" });
 });
-router.get('/ping', (_, res) => {
-    res.status(200).json({ message: "OK", value: new Date() });
-});
+
 router.get('/protected',
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     function (_, res) {
         res.status(200).json({ message: "OK-protected" });
     });
 router.post('/database/ping',
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     (req, res) => {
         DataAccessor.database.insertPing(req.body.key).then(
             (result) => {
@@ -100,8 +25,6 @@ router.post('/database/ping',
         );
     });
 router.get('/database/ping',
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     (req, res) => {
         DataAccessor.database.getPings(req.body.key).then(
             (result) => {
@@ -115,15 +38,11 @@ router.get('/database/ping',
     })
 
 router.get('/config/schema',
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     function (_, res) {
         res.status(200).json(DataAccessor.getSchema());
     });
 
 router.post('/schedule',
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     asyncMiddleware(async (req, res) => {
         const items = req.body.items;
         const result = await DataAccessor.database.addScheduleItems(items);
@@ -133,8 +52,6 @@ router.post('/schedule',
 
 
 router.put('/schedule/:id',
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     (req, res) => {
         const update = req.body.update;
         DataAccessor.database.updateScheduleItem(req.params.id, update
@@ -151,8 +68,6 @@ router.put('/schedule/:id',
 
     });
 router.delete("/schedule/:id",
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     asyncMiddleware(async (req, res) => {
         await DataAccessor.database.deleteScheduledItem(parseInt(req.params.id));
         res.send({})
@@ -160,8 +75,6 @@ router.delete("/schedule/:id",
     ));
 
 router.get('/instance',
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     asyncMiddleware(async (_, res) => {
         const conv = { data: {} };
 
@@ -185,16 +98,12 @@ router.get('/instance',
 
 
 router.get('/current',
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     asyncMiddleware(async (_, res) => {
         const currentWithNext = await DataAccessor.database.getCurrentScheduleItem();
         res.status(200).json(currentWithNext);
     }));
 
 router.get('/schedule',
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     asyncMiddleware(async (req, res) => {
         const queryObj = {}
         if (req.query.limit) {
@@ -209,8 +118,6 @@ router.get('/schedule',
     }));
 
 router.get('/entities/:plural',
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     asyncMiddleware(async (req, res) => {
         let entityConfig = DataAccessor.getEntityConfig(req.params.plural);
         if (entityConfig) {
@@ -255,8 +162,6 @@ router.get('/entities/:plural',
     }));
 
 router.put('/entities/:plural/:id',
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     (req, res) => {
         let entityConfig = DataAccessor.getEntityConfig(req.params.plural);
         if (entityConfig) {
@@ -287,8 +192,6 @@ const getEntityDatabaseObjectFromRequest = (entityConfig, update) => {
     return obj;
 }
 router.post('/entities/:plural',
-    checkIfAuthenticated,
-    handleUnauthorizedError,
     asyncMiddleware(async (req, res) => {
         let entityConfig = DataAccessor.getEntityConfig(req.params.plural);
         if (entityConfig) {
