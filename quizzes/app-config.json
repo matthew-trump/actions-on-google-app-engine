@@ -1,0 +1,30 @@
+{
+    "welcome": {
+        "new": {
+            "text": "Welcome to HQ university! Listen to the following questions and pick the best answer to sharpen up on your trivia skills.",
+            "audio": {
+                "initialDelay": "2.0s",
+                "prefix": "scott-intro-",
+                "randomIndex": 3,
+                "suffix": ".mp3"
+            },
+            "audioBackground": {
+                "file": "game-intro-music.mp3",
+                "soundLevel": "-10dB"
+            }
+        },
+        "returning": {
+            "text": "Welcome back! Here comes the first question.",
+            "audio": {
+                "initialDelay": "2.0s",
+                "prefix": "scott-return-",
+                "randomIndex": 3,
+                "suffix": ".mp3"
+            },
+            "audioBackground": {
+                "file": "game-intro-music.mp3",
+                "soundLevel": "-10dB"
+            }
+        }
+    }
+}
