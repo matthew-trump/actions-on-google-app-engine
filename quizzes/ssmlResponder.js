@@ -1,7 +1,7 @@
 const config = require("./app-config");
 const { Utils, RANKING } = require('../data-accessor');
 
-const shuffleArray = require('shuffle-array');
+
 const SKIP_MEDIA_INTRO = process.env.SKIP_MEDIA_INTRO || false;
 const AUDIO_STORAGE_URL = process.env.AUDIO_STORAGE_URL;
 
@@ -115,8 +115,7 @@ const ssmlResponder = class {
         return { ssml, text };
     }
     getQuestionResponse(question, questionIndex, numQuestions, repeat) {
-
-        const choices = shuffleArray(question.answers).map(a => a.text);
+        const choices = question.answers.map(a => a.text);
         const spoken = choices.slice(0);
         spoken.splice(2, 0, "or");
         const tags = [];
@@ -194,6 +193,17 @@ const ssmlResponder = class {
         const ssml = `<speak>${Utils.escape(text)}</speak>`;
         return { ssml, text };
     }
+    getScoreResponse(score, numAsked) {
+        let ssml;
+        if (score === 0) {
+            ssml = `<speak>You haven't gotten any questions right. keep trying.</speak>`
+        } else if (score === 1) {
+            ssml = `<speak>You've gotten ${score} question right of ${numAsked}</speak>`;
+        } else {
+            ssml = `<speak>You've gotten ${score} of ${numAsked} questions right.</speak>`;
+        }
+        return { ssml }
+    }
     getFinalScoreResponse(score, numQuestions) {
 
         const low = Math.floor(numQuestions / 3);
@@ -224,6 +234,16 @@ const ssmlResponder = class {
             ssml: ssml
         }
 
+    }
+    getGameEndResponse() {
+
+        const random = 0;
+
+        const ssml = `<audio src=${AUDIO_STORAGE_URL}scott-end-${random}.mp3'/>`;
+        return {
+            speech: ssml,
+            text: `See you again soon!`
+        }
     }
 }
 
