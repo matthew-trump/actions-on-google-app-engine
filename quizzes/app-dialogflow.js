@@ -72,17 +72,14 @@ app.intent(GAME.START, async (conv) => {
                 loadImmersiveUrl: IMMERSIVE_URL,
                 updatedState: {
                     view: STATE.INTRO,
-                    welcome: {
-                        ssml: welcomeResponse.ssml,
-                        text: welcomeResponse.text,
-                        length: conv.data.round.items.length
-
-                    },
+                    length: conv.data.round.items.length,
+                    questionIndex: conv.data.round.index,
+                    welcome: welcomeResponse.ssml,
+                    prompt: questionResponse.ssmlPrompt,
                     question: {
-                        index: conv.data.quiz.questionIndex,
-                        ssmlPrompt: questionResponse.ssmlPrompt,
-                        ssmlQuestion: questionResponse.ssmlQuestion,
-                        text: questionResponse.text
+                        ssml: questionResponse.ssmlQuestion,
+                        text: questionResponse.text,
+                        choices: questionResponse.choices
                     }
                 }
             }
@@ -95,109 +92,64 @@ app.intent(GAME.START, async (conv) => {
             questionResponse.ssmlQuestion,
             new Suggestions(questionResponse.choices))
 
-
-
-
-    /** 
-    await Quizzes.startQuiz(conv, { accessUserStorage: true });
-
-    conv.data.questionIndex = 0;
-    conv.data.score = 0
-    conv.data.repeat = false;
-    conv.data.questionsAnswered = []
-    conv.data.answered = false;
-    conv.data.quizL = Quizzes.getNumQuestions(conv);
-
-    const question = await Quizzes.getQuestion(conv, { questionIndex: conv.data.questionIndex, flattenedForm: true });
-
-    const welcomeReponse = ssmlResponder.getWelcomeResponse(conv.user.last.seen);
-    const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.questionIndex, conv.data.repeat);
-
-    if (useImmersiveContent(conv)) {
-        conv.ask(
-            {
-                immersiveResponse: {
-                    loadImmersiveUrl: IMMERSIVE_URL,
-                    updatedState: {
-                        view: STATE.INTRO,
-                        returning: conv.user.last.seen ? true : false,
-                        SSML: welcomeReponse.ssml,
-                        questionSSML: questionResponse.ssml,
-                        question: question,
-                        questionIndex: conv.data.questionIndex,
-                        quizLength: conv.data.quizL
-                    }
-                }
-            }
-        )
-    } else {
-        conv.ask(
-            new SimpleResponse({
-                speech: welcomeReponse.ssml,
-                text: welcomeReponse.text
-            }),
-            questionResponse.ssml,
-            new Suggestions(questionResponse.choices)
-        )
-    }
-     */
     conv.contexts.set(GAME.ANSWER, 1)
 
 })
 app.intent(GAME.CHOICE_ANSWER, async (conv) => {
-    /** 
     await Quizzes.ensureLoaded(conv);
-    const question = await Quizzes.getQuestion(conv, { questionIndex: conv.data.questionIndex, flattenedForm: true });
+    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
     const answerIndex = getAnswerIndex(question.answers, conv.query);
     const correct = answerIndex === 0;
     const recognized = answerIndex !== -1;
 
-    console.log("answerIndex", answerIndex, question, conv.data.questionIndex);
     if (recognized) {
-        Quizzes.setLatest(conv, { questionIndex: conv.questionIndex, answerIndex: answerIndex });
+        Quizzes.setLatest(conv, { questionIndex: conv.data.round.index, answerIndex: answerIndex });
         Quizzes.recordResponse(conv);
 
-        conv.data.repeat = false;
-        conv.data.answered = true;
-        conv.data.questionIndex += 1;
+        conv.data.round.index += 1;
         if (correct) {
-            conv.data.score += 1;
+            conv.data.round.score += 1;
         }
 
         const answerResponse = correct ? ssmlResponder.getAnswerCorrectResponse() : ssmlResponder.getAnswerWrongResponse();
 
-        const complete = conv.data.questionIndex === conv.data.quizL;
+        const complete = conv.data.round.index === conv.data.round.items.length;
+
         if (complete) {
             Quizzes.saveResults(conv, { accessUserStorage: true })
         }
         if (useImmersiveContent(conv)) {
             if (!complete) {
-                const nextQuestion = await Quizzes.getQuestion(conv, { questionIndex: conv.data.questionIndex, flattenedForm: true });
-                const questionResponse = ssmlResponder.getQuestionResponse(nextQuestion, conv.data.questionIndex, conv.data.repeat);
+                const nextQuestion = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
+                const questionResponse = ssmlResponder.getQuestionResponse(nextQuestion, conv.data.round.index, conv.data.round.items.length, false);
                 conv.ask({
                     immersiveResponse: {
                         updatedState: {
                             view: STATE.QUESTION,
                             answerIndex: answerIndex,
-                            questionSSML: questionResponse.ssml,
-                            checkSSML: answerResponse.ssml,
-                            question: question,
-                            questionIndex: conv.data.questionIndex,
-                            repeat: conv.data.repeat,
-                            score: conv.data.score
+                            answer: answerResponse.ssml,
+                            repeat: false,
+                            questionIndex: conv.data.round.index,
+                            score: conv.data.round.score,
+                            prompt: questionResponse.ssmlPrompt,
+                            question: {
+                                ssml: questionResponse.ssmlQuestion,
+                                text: questionResponse.text,
+                                choices: questionResponse.choices
+                            }
                         }
                     }
                 })
             } else {
 
-                const finalScoreResponse = ssmlResponder.getFinalScoreResponse(conv.data.score, conv.data.quizL);
+                const finalScoreResponse = ssmlResponder.getFinalScoreResponse(conv.data.round.score, conv.data.round.items.length);
                 conv.ask({
                     immersiveResponse: {
                         updatedState: {
                             view: STATE.SCORE,
-                            SSML: finalScoreResponse.ssml,
-                            score: conv.data.score,
-                            checkSSML: answerResponse.ssml,
+                            score: conv.data.round.score,
+                            answer: answerResponse.ssml,
+                            finalScore: finalScoreResponse.ssml,
                             answerIndex: answerIndex
                         }
                     }
@@ -206,12 +158,14 @@ app.intent(GAME.CHOICE_ANSWER, async (conv) => {
             }
 
         } else {
+            /** 
             if (!complete) {
-                const nextQuestion = await Quizzes.getQuestion(conv, { questionIndex: conv.data.questionIndex, flattenedForm: true });
-                const questionPrompt = ssmlResponder.getQuestionPrompt(nextQuestion, conv.data.questionIndex, conv.data.repeat);
+                const nextQuestion = await Quizzes.getQuestion(conv, { questionIndex: conv.data.round.index });
+                const questionResponse = ssmlResponder.getQuestionResponse(nextQuestion, conv.data.round.index, false);
                 conv.ask(
                     answerResponse.ssml,
-                    questionPrompt.ssml,
+                    questionResponse.ssmlPrompt,
+                    questionResponse.ssmlQuestion,
                     new Suggestions(questionPrompt.choices)
                 )
             } else {
@@ -233,39 +187,47 @@ app.intent(GAME.CHOICE_ANSWER, async (conv) => {
                 )
                 conv.contexts.set(CONTEXT.GAME_RESTART, 1);
             }
+            */
         }
 
 
     } else {
-        conv.data.answered = false
-        conv.data.repeat = true
+
+        const repeat = true
         const answerResponse = ssmlResponder.getAnswerUnrecognizedResponse();
-        const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.questionIndex, conv.data.repeat);
+        const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.round.index, conv.data.round.items.length, repeat);
         if (useImmersiveContent(conv)) {
             conv.ask({
                 immersiveResponse: {
                     updatedState: {
                         view: STATE.QUESTION,
                         answerIndex: answerIndex,
-                        questionSSML: questionResponse.ssml,
-                        checkSSML: answerResponse.ssml,
-                        question: question,
+                        answer: answerResponse.ssml,
+                        prompt: questionResponse.ssmlPrompt,
+                        question: {
+                            ssml: questionResponse.ssmlQuestion,
+                            text: questionResponse.text,
+                            choices: questionResponse.choices
+                        },
                         questionIndex: conv.data.questionIndex,
-                        repeat: conv.data.repeat,
-                        score: conv.data.score
+                        repeat: repeat,
+                        score: conv.data.round.score
                     }
                 }
             })
         } else {
+            /** 
             conv.ask(
                 answerResponse.ssml,
                 questionResponse.ssml,
                 new Suggestions(questionResponse.choicess)
             )
+            */
         }
 
     }
-    */
+
+
 });
 
 
