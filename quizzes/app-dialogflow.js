@@ -63,7 +63,7 @@ app.intent(GAME.START, async (conv) => {
     const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
 
     const welcomeResponse = ssmlResponder.getWelcomeResponse(returning);
-    const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.round.index, false);
+    const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.round.index, conv.data.round.items.length, false);
 
     console.log("CONV", conv);
     useImmersiveContent(conv) ? conv.ask(
@@ -73,14 +73,15 @@ app.intent(GAME.START, async (conv) => {
                 updatedState: {
                     view: STATE.INTRO,
                     welcome: {
-                        speech: welcomeResponse.ssml,
+                        ssml: welcomeResponse.ssml,
                         text: welcomeResponse.text,
                         length: conv.data.round.items.length
 
                     },
                     question: {
                         index: conv.data.quiz.questionIndex,
-                        speech: questionResponse.ssml,
+                        ssmlPrompt: questionResponse.ssmlPrompt,
+                        ssmlQuestion: questionResponse.ssmlQuestion,
                         text: questionResponse.text
                     }
                 }
@@ -90,7 +91,8 @@ app.intent(GAME.START, async (conv) => {
             speech: welcomeResponse.ssml,
             text: welcomeResponse.text
         }),
-            questionResponse.ssml,
+            questionResponse.ssmlPrompt,
+            questionResponse.ssmlQuestion,
             new Suggestions(questionResponse.choices))
 
 
