@@ -3,6 +3,8 @@ const DataAccessor = require('./accessor');
 const ALLOW_USER_STORAGE_ACCESS = process.env.ALLOW_USER_STORAGE_ACCESS || 0;
 const SESSION_NO_REPEAT_ENTRIES = process.env.SESSION_NO_REPEAT_ENTRIES > 0;
 
+
+
 const rounds = class {
     constructor() { }
 
@@ -140,6 +142,7 @@ const rounds = class {
             return Promise.resolve(pObj);
         }
     }
+
 }
 Rounds = new rounds();
 module.exports = Rounds;
