@@ -128,9 +128,9 @@ const ssmlResponder = class {
 
         let ssmlPrompt = '<speak>';
         if (!repeat) {
-            ssmlPrompt = Utils.escape(prompt);
+            ssmlPrompt += Utils.escape(prompt);
         } else {
-            ssmlPrompt = Utils.escape("let's try that again");
+            ssmlPrompt += Utils.escape("let's try that again");
         }
         ssmlPrompt += '</speak>';
 
@@ -150,6 +150,80 @@ const ssmlResponder = class {
             text,
             choices,
         }
+    }
+    getAnswerCorrectResponse() {
+        //const correct = this.getRandomItem(audioFiles.answers.correct);
+        const random = 0;
+        const text = "That's correct!";
+        const ssml =
+            `<speak>
+                <par>
+                <media>
+                    <audio src="${AUDIO_STORAGE_URL}right.mp3"/>
+                 </media>
+                <media begin="0.2s">
+                    <audio src="${AUDIO_STORAGE_URL}scott-correct-${random}.mp3"/>
+                </media>
+                </par>
+                <desc>${Utils.escape(text)}</desc>
+            </speak>`;
+
+        return { ssml, text };
+    }
+    getAnswerWrongResponse() {
+        //const wrong = this.getRandomItem(audioFiles.answers.wrong);
+        const random = 0;
+        const text = "Sorry That's wrong.";
+        const ssml =
+            `<speak>
+               <par>
+                <media>
+                    <audio src="${AUDIO_STORAGE_URL}wrong.mp3"/>
+                </media>
+                <media begin="0.2s">
+                    <audio src="${AUDIO_STORAGE_URL}scott-wrong-${random}.mp3"/>
+                </media>
+                </par>
+                <desc>${Utils.escape(text)}</desc>
+            </speak>`;
+
+        return { ssml, text };
+    }
+    getAnswerUnrecognizedResponse() {
+        const text = "sorry that answer is not one of the choices";
+        const ssml = `<speak>${Utils.escape(text)}</speak>`;
+        return { ssml, text };
+    }
+    getFinalScoreResponse(score, numQuestions) {
+
+        const low = Math.floor(numQuestions / 3);
+        const mid = Math.floor(2 * numQuestions / 3);
+        const random = 0;
+
+        let ssml = `<speak>`
+        ssml += `<audio src='${AUDIO_STORAGE_URL}score.mp3'/>`;
+        ssml += Utils.escape(`You got ${score} of ${numQuestions} questions right.`);
+        ssml += `<break time='200ms'/>`
+
+        if (score < low) {
+            ssml += `<audio src='${AUDIO_STORAGE_URL}scott-low-${random}.mp3'/>`;
+        } else if (score < mid) {
+            ssml += `<audio src='${AUDIO_STORAGE_URL}scott-mid-${random}.mp3'/>`;
+        } else {
+            ssml += `<audio src='${AUDIO_STORAGE_URL}scott-high-${random}.mp3'/>`;
+        }
+
+        ssml += `<break time='800ms'/>`
+        ssml += `<desc>${Utils.escape("Do you want to try again?")}</desc>`;
+        ssml += `${Utils.escape("Do you want to try again?")}`;
+
+
+
+
+        return {
+            ssml: ssml
+        }
+
     }
 }
 
