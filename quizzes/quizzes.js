@@ -3,13 +3,26 @@ const { Rounds } = require('../data-accessor');
 class Quizzes {
 
     constructor() { }
-
+    async ensureLoaded(conv) {
+        return Rounds.ensureLoaded(conv);
+    }
     async startQuiz(conv, options) {
-        return Rounds.startRound(conv, options);
+        const items = await Rounds.startRound(conv, options);
+        conv.data.round.score = 0;
+        return items;
     }
     async getQuestion(conv, options) {
         const item = await Rounds.getItem(conv, options);
         return this.parseQuestion(item);
+    }
+    setLatest(conv, options) {
+
+    }
+    recordResponse(conv) {
+
+    }
+    saveResults(conv, options) {
+
     }
     numQuestions(conv) {
         return conv.data.round.items.length;
