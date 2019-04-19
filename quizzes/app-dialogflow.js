@@ -24,7 +24,7 @@ const {
     SimpleResponse
 } = require("actions-on-google")
 
-//const Quizzes = require("./quizzes");
+const Quizzes = require("./quizzes");
 
 const useImmersiveContent = conv => {
     return IMMERSIVE_URL && conv.surface.capabilities.has(ACTIONS.CAPABILITY_CUSTOM_STAGE);
@@ -57,6 +57,45 @@ const getAnswerIndex = (answers, choice) => {
 
 
 app.intent(GAME.START, async (conv) => {
+    const returning = conv.user.last.seen;
+
+    await Quizzes.startQuiz(conv, { accessUserStorage: true });
+    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
+
+    const welcomeResponse = ssmlResponder.getWelcomeResponse(returning);
+    const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.round.index, false);
+
+    console.log("CONV", conv);
+    useImmersiveContent(conv) ? conv.ask(
+        {
+            immersiveResponse: {
+                loadImmersiveUrl: IMMERSIVE_URL,
+                updatedState: {
+                    view: STATE.INTRO,
+                    welcome: {
+                        speech: welcomeResponse.ssml,
+                        text: welcomeResponse.text,
+                        length: conv.data.round.items.length
+
+                    },
+                    question: {
+                        index: conv.data.quiz.questionIndex,
+                        speech: questionResponse.ssml,
+                        text: questionResponse.text
+                    }
+                }
+            }
+        })
+        : conv.ask(new SimpleResponse({
+            speech: welcomeResponse.ssml,
+            text: welcomeResponse.text
+        }),
+            questionResponse.ssml,
+            new Suggestions(questionResponse.choices))
+
+
+
+
     /** 
     await Quizzes.startQuiz(conv, { accessUserStorage: true });
 
@@ -99,8 +138,9 @@ app.intent(GAME.START, async (conv) => {
             new Suggestions(questionResponse.choices)
         )
     }
+     */
     conv.contexts.set(GAME.ANSWER, 1)
-    */
+
 })
 app.intent(GAME.CHOICE_ANSWER, async (conv) => {
     /** 
