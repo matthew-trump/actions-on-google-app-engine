@@ -1,5 +1,5 @@
 const config = require("./app-config");
-
+const shuffleArray = require('shuffle-array');
 const SKIP_MEDIA_INTRO = process.env.SKIP_MEDIA_INTRO || false;
 const AUDIO_STORAGE_URL = process.env.AUDIO_STORAGE_URL;
 
@@ -43,6 +43,33 @@ const ssmlResponder = class {
 
 
         return { ssml, text };
+    }
+    getQuestionResponse(question, questionIndex, repeat) {
+
+        const choices = shuffleArray(question.answers).map(a => a.text);
+        const spoken = choices.slice(0);
+        spoken.splice(2, 0, "or");
+        const tags = [];
+
+        if (!repeat) {
+            //tags.push(escape(this.getRandomItem(questionIntro[questionIndex])))
+            tags.push(escape("OK here's the question"))
+        } else {
+            tags.push(escape("let's try that again"));
+        }
+        tags.push(`<break time='1000ms'/>`);
+        tags.push(escape(question.text));
+        tags.push(`<break time='800ms'/>`);
+        tags.push(escape("your choices are"));
+        tags.push(`<break time='500ms'/>`);
+        tags.push(escape(spoken.join(',<break time="400ms"/>')));
+
+        const ssml = `<speak>${tags.join(" ")}</speak>`;
+
+        return {
+            ssml,
+            choices,
+        }
     }
 }
 
