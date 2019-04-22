@@ -67,7 +67,7 @@ app.intent(GAME.QUESTION_REPEAT, async (conv, params) => {
         )
 
     }
-
+    conv.contexts.set(GAME.ANSWER, 1);
 });
 
 app.intent(GAME.CHOICE_ORDINAL, async (conv, params) => {
@@ -124,7 +124,6 @@ app.intent(GAME.SCORE, async (conv) => {
                     text: scoreResponse.text
                 })
         )
-
     }
 
 })
@@ -216,7 +215,7 @@ const startNewQuiz = async (conv, returning) => {
             }),
             new Suggestions(questionResponse.choices))
 
-    conv.contexts.set(GAME.ANSWER, 1)
+    conv.contexts.set(GAME.ANSWER, 1);
 }
 
 
@@ -263,6 +262,7 @@ handleAnswerChoice = async (conv, question, answerIndex) => {
                         }
                     }
                 })
+                conv.contexts.set(GAME.ANSWER, 1);
             } else {
 
                 const finalScoreResponse = ssmlResponder.getFinalScoreResponse(conv.data.round.score, conv.data.round.items.length);
@@ -296,6 +296,7 @@ handleAnswerChoice = async (conv, question, answerIndex) => {
                     }),
                     new Suggestions(questionResponse.choices)
                 )
+                conv.contexts.set(GAME.ANSWER, 1);
             } else {
                 const finalScoreResponse = ssmlResponder.getFinalScoreResponse(conv.data.round.score, conv.data.round.items.length);
 
@@ -348,7 +349,7 @@ handleAnswerChoice = async (conv, question, answerIndex) => {
                         score: conv.data.round.score
                     }
                 }
-            })
+            });
         } else {
 
             conv.ask(
@@ -360,7 +361,7 @@ handleAnswerChoice = async (conv, question, answerIndex) => {
             )
 
         }
-
+        conv.contexts.set(GAME.ANSWER, 1);
     }
 
 
