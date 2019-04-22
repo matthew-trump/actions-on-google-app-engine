@@ -26,6 +26,122 @@ const {
 
 const Quizzes = require("./quizzes");
 
+
+
+app.intent(GAME.START, async (conv) => {
+    return startNewQuiz(conv, conv.user.last.seen)
+});
+app.intent("moo", async (conv) => {
+    conv.ask('moooo!');
+});
+
+app.intent(GAME.QUESTION_REPEAT, async (conv, params) => {
+    await Quizzes.ensureLoaded(conv);
+    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index, keepLastOrder: true });
+    const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.round.index, conv.data.round.items.length, true);
+    if (useImmersiveContent(conv)) {
+
+        conv.ask({
+            immersiveResponse: {
+                updatedState: {
+                    view: STATE.QUESTION,
+                    repeat: true,
+                    questionIndex: conv.data.round.index,
+                    question: {
+                        ssml: questionResponse.ssml,
+                        text: questionResponse.text,
+                        choices: questionResponse.choices
+                    }
+                }
+            }
+        })
+
+    } else {
+        conv.ask(
+            new SimpleResponse({
+                speech: questionResponse.ssml,
+                text: questionResponse.text,
+
+            }),
+            new Suggestions(questionResponse.choices)
+        )
+
+    }
+
+});
+
+app.intent(GAME.CHOICE_ORDINAL, async (conv, params) => {
+    await Quizzes.ensureLoaded(conv);
+    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
+    const answerIndex = getAnswerIndexOrdinal(question.answers, conv.data.round.indices[params.ordinal]);
+    return handleAnswerChoice(conv, question, answerIndex);
+});
+
+app.intent(GAME.CHOICE_MIDDLE, async (conv) => {
+    await Quizzes.ensureLoaded(conv);
+    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
+    const answerIndex = getAnswerIndexOrdinal(question.answers, conv.data.round.indices[1]);
+    return handleAnswerChoice(conv, question, answerIndex);
+});
+app.intent(GAME.CHOICE_LAST, async (conv) => {
+    await Quizzes.ensureLoaded(conv);
+    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
+    const answerIndex = getAnswerIndexOrdinal(question.answers, conv.data.round.indices[2]);
+    return handleAnswerChoice(conv, question, answerIndex);
+});
+app.intent(GAME.CHOICE_ANSWER, async (conv) => {
+    await Quizzes.ensureLoaded(conv);
+    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
+    const answerIndex = getAnswerIndex(question.answers, conv.query);
+    return handleAnswerChoice(conv, question, answerIndex);
+});
+app.intent(GAME.SCORE, async (conv) => {
+    await Quizzes.ensureLoaded(conv);
+    const complete = conv.data.round.index >= conv.data.round.items.length;
+    if (complete) {
+
+        const finalScoreResponse = ssmlResponder.getFinalScoreResponse(conv.data.round.score, conv.data.round.items.length);
+        conv.ask({
+            immersiveResponse: {
+                updatedState: {
+                    view: STATE.SCORE,
+                    score: conv.data.round.score,
+                    finalScore: finalScoreResponse.ssml
+                }
+            }
+        })
+        conv.contexts.set(CONTEXT.GAME_RESTART, 1);
+    } else {
+        const repeat = true;
+        const scoreResponse = ssmlResponder.getScoreResponse(conv.data.round.score, conv.data.round.index + 1);
+        //const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index, keepLastOrder: true });
+        //const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.round.index, conv.data.round.items.length, repeat);
+
+        conv.ask(
+            new SimpleResponse(
+                {
+                    speech: scoreResponse.ssml,
+                    text: scoreResponse.text
+                })
+        )
+
+    }
+
+})
+app.intent(GAME.RESTART_YES, async (conv) => {
+    return startNewQuiz(conv, true)
+});
+app.intent(GAME.RESTART_NO, async (conv) => {
+    conv.close(
+        new SimpleResponse(ssmlResponder.getGameEndResponse())
+    );
+})
+app.intent(GAME.QUIT, async (conv) => {
+    conv.close();
+})
+
+
+
 const useImmersiveContent = conv => {
     return IMMERSIVE_URL && conv.surface.capabilities.has(ACTIONS.CAPABILITY_CUSTOM_STAGE);
 }
@@ -54,8 +170,8 @@ const getAnswerIndex = (answers, choice) => {
     }
     return -1;
 }
+
 const getAnswerIndexOrdinal = (answers, ordinal) => {
-    //console.log("getAnswerIndexOrdinal", answers, ordinal);
     if (ordinal < answers.length) {
         return answers[ordinal].index;
     } else {
@@ -63,24 +179,7 @@ const getAnswerIndexOrdinal = (answers, ordinal) => {
     }
 
 }
-
-
-app.intent(GAME.START, async (conv) => {
-    return startNewQuiz(conv, conv.user.last.seen)
-});
-app.intent(GAME.RESTART_YES, async (conv) => {
-    return startNewQuiz(conv, true)
-});
-app.intent(GAME.RESTART_NO, async (conv) => {
-    conv.close(
-        new SimpleResponse(ssmlResponder.getGameEndResponse())
-    );
-})
-app.intent(GAME.QUIT, async (conv) => {
-    conv.close();
-})
-
-startNewQuiz = async (conv, returning) => {
+const startNewQuiz = async (conv, returning) => {
     await Quizzes.startQuiz(conv, { accessUserStorage: true });
 
     const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index, shuffle: true });
@@ -98,108 +197,28 @@ startNewQuiz = async (conv, returning) => {
                     length: conv.data.round.items.length,
                     questionIndex: conv.data.round.index,
                     welcome: welcomeResponse.ssml,
-                    prompt: questionResponse.ssmlPrompt,
                     question: {
-                        ssml: questionResponse.ssmlQuestion,
+                        ssml: questionResponse.ssml,
                         text: questionResponse.text,
                         choices: questionResponse.choices
                     }
                 }
             }
         })
-        : conv.ask(new SimpleResponse({
-            speech: welcomeResponse.ssml,
-            text: welcomeResponse.text
-        }),
-            questionResponse.ssmlPrompt,
-            questionResponse.ssmlQuestion,
+        : conv.ask(
+            new SimpleResponse({
+                speech: welcomeResponse.ssml,
+                text: welcomeResponse.text
+            }),
+            new SimpleResponse({
+                speech: questionResponse.ssml,
+                text: questionResponse.text
+            }),
             new Suggestions(questionResponse.choices))
 
     conv.contexts.set(GAME.ANSWER, 1)
 }
-app.intent(GAME.QUESTION_REPEAT, async (conv, params) => {
-    await Quizzes.ensureLoaded(conv);
-    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index, keepLastOrder: true });
-    if (useImmersiveContent(conv)) {
 
-        const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.round.index, conv.data.round.items.length, true);
-        conv.ask({
-            immersiveResponse: {
-                updatedState: {
-                    view: STATE.QUESTION,
-                    repeat: true,
-                    questionIndex: conv.data.round.index,
-                    prompt: questionResponse.ssmlPrompt,
-                    question: {
-                        ssml: questionResponse.ssmlQuestion,
-                        text: questionResponse.text,
-                        choices: questionResponse.choices
-                    }
-                }
-            }
-        })
-
-    } else {
-        /** 
-        if (!complete) {
-            const nextQuestion = await Quizzes.getQuestion(conv, { questionIndex: conv.data.round.index });
-            const questionResponse = ssmlResponder.getQuestionResponse(nextQuestion, conv.data.round.index, false);
-            conv.ask(
-                answerResponse.ssml,
-                questionResponse.ssmlPrompt,
-                questionResponse.ssmlQuestion,
-                new Suggestions(questionPrompt.choices)
-            )
-        } else {
-            const finalScoreResponse = ssmlResponder.getFinalScoreResponse(conv.data.score, conv.data.quizL);
-
-            const finalScoreCard = new BasicCard({
-                title: `Your Final Score is ${score}`,
-                image: new Image({
-                    url: `https://dummyimage.com/1024x576/36399A/ffffff&text=${score}!`,
-                    alt: "Your Score "
-                }),
-                display: "CROPPED"
-            })
-
-            conv.ask(
-                finalScoreResponse.ssml,
-                finalScoreCard,
-                new Suggestions(["yes", "no"])
-            )
-            conv.contexts.set(CONTEXT.GAME_RESTART, 1);
-        }
-        */
-    }
-
-});
-
-app.intent(GAME.CHOICE_ORDINAL, async (conv, params) => {
-    await Quizzes.ensureLoaded(conv);
-    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
-    const answerIndex = getAnswerIndexOrdinal(question.answers, conv.data.round.indices[params.ordinal]);
-    return handleAnswerChoice(conv, question, answerIndex);
-});
-
-app.intent(GAME.CHOICE_MIDDLE, async (conv) => {
-    await Quizzes.ensureLoaded(conv);
-    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
-    const answerIndex = getAnswerIndexOrdinal(question.answers, conv.data.round.indices[1]);
-    return handleAnswerChoice(conv, question, answerIndex);
-});
-app.intent(GAME.CHOICE_LAST, async (conv) => {
-    await Quizzes.ensureLoaded(conv);
-    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
-    const answerIndex = getAnswerIndexOrdinal(question.answers, conv.data.round.indices[2]);
-    return handleAnswerChoice(conv, question, answerIndex);
-});
-
-app.intent(GAME.CHOICE_ANSWER, async (conv) => {
-    await Quizzes.ensureLoaded(conv);
-    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
-    const answerIndex = getAnswerIndex(question.answers, conv.query);
-    return handleAnswerChoice(conv, question, answerIndex);
-});
 
 handleAnswerChoice = async (conv, question, answerIndex) => {
 
@@ -262,36 +281,47 @@ handleAnswerChoice = async (conv, question, answerIndex) => {
             }
 
         } else {
-            /** 
+
             if (!complete) {
-                const nextQuestion = await Quizzes.getQuestion(conv, { questionIndex: conv.data.round.index });
-                const questionResponse = ssmlResponder.getQuestionResponse(nextQuestion, conv.data.round.index, false);
+                const nextQuestion = await Quizzes.getQuestion(conv, { questionIndex: conv.data.round.index, shuffle: true });
+                const questionResponse = ssmlResponder.getQuestionResponse(nextQuestion, conv.data.round.index, conv.data.round.items.length, false);
                 conv.ask(
-                    answerResponse.ssml,
-                    questionResponse.ssmlPrompt,
-                    questionResponse.ssmlQuestion,
-                    new Suggestions(questionPrompt.choices)
+                    new SimpleResponse({
+                        speech: answerResponse.ssml,
+                        text: answerResponse.text
+                    }),
+                    new SimpleResponse({
+                        speech: questionResponse.ssml,
+                        text: questionResponse.text
+                    }),
+                    new Suggestions(questionResponse.choices)
                 )
             } else {
-                const finalScoreResponse = ssmlResponder.getFinalScoreResponse(conv.data.score, conv.data.quizL);
-
-                const finalScoreCard = new BasicCard({
-                    title: `Your Final Score is ${score}`,
-                    image: new Image({
-                        url: `https://dummyimage.com/1024x576/36399A/ffffff&text=${score}!`,
-                        alt: "Your Score "
-                    }),
-                    display: "CROPPED"
-                })
+                const finalScoreResponse = ssmlResponder.getFinalScoreResponse(conv.data.round.score, conv.data.round.items.length);
 
                 conv.ask(
-                    finalScoreResponse.ssml,
-                    finalScoreCard,
+                    new SimpleResponse({
+                        speech: answerResponse.ssml,
+                        text: answerResponse.text
+                    }),
+                    new BasicCard({
+                        title: `Your Final Score is ${conv.data.round.score}`,
+                        image: new Image({
+                            url: `https://dummyimage.com/1024x576/36399A/ffffff&text=${conv.data.round.score}!`,
+                            alt: "Your Score"
+                        }),
+                        display: "CROPPED"
+                    }),
+                    new SimpleResponse(
+                        {
+                            speech: finalScoreResponse.ssml,
+                            text: finalScoreResponse.text
+                        }),
                     new Suggestions(["yes", "no"])
                 )
                 conv.contexts.set(CONTEXT.GAME_RESTART, 1);
             }
-            */
+
         }
 
 
@@ -320,45 +350,22 @@ handleAnswerChoice = async (conv, question, answerIndex) => {
                 }
             })
         } else {
-            /** 
+
             conv.ask(
-                answerResponse.ssml,
-                questionResponse.ssml,
-                new Suggestions(questionResponse.choicess)
+                new SimpleResponse({
+                    speech: answerResponse.ssml,
+                    text: answerResponse.text
+                })
+
             )
-            */
+
         }
 
     }
 
 
 };
-app.intent(GAME.SCORE, async (conv) => {
-    await Quizzes.ensureLoaded(conv);
-    const complete = conv.data.round.index >= conv.data.round.items.length;
-    if (complete) {
 
-        const finalScoreResponse = ssmlResponder.getFinalScoreResponse(conv.data.round.score, conv.data.round.items.length);
-        conv.ask({
-            immersiveResponse: {
-                updatedState: {
-                    view: STATE.SCORE,
-                    score: conv.data.round.score,
-                    finalScore: finalScoreResponse.ssml
-                }
-            }
-        })
-        conv.contexts.set(CONTEXT.GAME_RESTART, 1);
-    } else {
-        const repeat = true;
-        const scoreResponse = ssmlResponder.getScoreResponse(conv.data.round.score, conv.data.round.index + 1);
-        const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index, keepLastOrder: true });
-        const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.round.index, conv.data.round.items.length, repeat);
-        conv.ask(scoreResponse.ssml, questionResponse.ssmlPrompt, questionResponse.ssmlQuestion);
-
-    }
-
-})
 
 
 router.use(app);
