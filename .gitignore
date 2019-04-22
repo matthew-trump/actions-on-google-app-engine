@@ -3,6 +3,7 @@ keys/*key*
 service.account
 environment-local.sh
 ngrok.yml
+commands.txt
 **.DS_Store
 # Logs
 logs
