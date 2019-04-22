@@ -100,15 +100,15 @@ const ssmlResponder = class {
             + welcomeConfig.audio.suffix;
 
         const ssml = SKIP_MEDIA_INTRO ? `<speak>${Utils.escape(text)}</speak>` :
-            `<speak>`
-            + `<par>`
-            + `<media begin="${audioInitialDelay}">`
-            + `<audio src="${AUDIO_STORAGE_URL}${audioFile}"/>`
-            + `</media>`
-            + `<media soundLevel="${audioBackgroundSoundLevel}">`
-            + `<audio src="${AUDIO_STORAGE_URL}${audioBackgroundFile}"/>`
-            + `</media>`
-            + `</par>`
+            `<speak>\n`
+            + ` <par>\n`
+            + `  <media begin="${audioInitialDelay}">\n`
+            + `   <audio src="${AUDIO_STORAGE_URL}${audioFile}"/>\n`
+            + `  </media>\n`
+            + `  <media soundLevel="${audioBackgroundSoundLevel}">\n`
+            + `   <audio src="${AUDIO_STORAGE_URL}${audioBackgroundFile}"/>\n`
+            + `  </media>\n`
+            + ` </par>\n`
             + `</speak>`;
 
 
@@ -125,27 +125,23 @@ const ssmlResponder = class {
             .replace(/\$NUMBER/g, "" + (questionIndex + 1) + "")
             .replace(/\$ORDINAL/g, questionIndex < ORDINALS.length ? ORDINALS[questionIndex] : 'next')
 
-        let ssmlPrompt = '<speak>';
+        let ssml = '<speak>';
         if (!repeat) {
-            ssmlPrompt += Utils.escape(prompt);
+            ssml += Utils.escape(prompt);
         } else {
-            ssmlPrompt += Utils.escape("let's try that again");
+            ssml += Utils.escape("let's try that again");
         }
-        ssmlPrompt += '</speak>';
-
-        let ssmlQuestion = '<speak>';
-        ssmlQuestion += `<break time='1000ms'/>`;
-        ssmlQuestion += Utils.escape(question.text);
-        ssmlQuestion += `<break time='800ms'/>`;
-        ssmlQuestion += Utils.escape("your choices are");
-        ssmlQuestion += `<break time='500ms'/>`;
-        ssmlQuestion += Utils.escape(spoken.join(',<break time="400ms"/>'));
-        ssmlQuestion += '</speak>';
+        ssml += ` <break time='1000ms'/>`;
+        ssml += Utils.escape(question.text) + '\n';
+        ssml += ` <break time='800ms'/>`;
+        ssml += Utils.escape("your choices are") + '\n';
+        ssml += ` <break time='500ms'/>`;
+        ssml += Utils.escape(spoken.join(',\n  <break time="400ms"/>')) + '\n';
+        ssml += '</speak>';
 
         const text = question.text;
         return {
-            ssmlPrompt,
-            ssmlQuestion,
+            ssml,
             text,
             choices,
         }
@@ -154,18 +150,17 @@ const ssmlResponder = class {
         //const correct = this.getRandomItem(audioFiles.answers.correct);
         const random = 0;
         const text = "That's correct!";
-        const ssml =
-            `<speak>
-                <par>
-                <media>
-                    <audio src="${AUDIO_STORAGE_URL}right.mp3"/>
-                 </media>
-                <media begin="0.2s">
-                    <audio src="${AUDIO_STORAGE_URL}scott-correct-${random}.mp3"/>
-                </media>
-                </par>
-                <desc>${Utils.escape(text)}</desc>
-            </speak>`;
+        let ssml = `<speak>\n`
+        ssml += ` <par>\n`
+        ssml += `  <media>\n`
+        ssml += `   <audio src="${AUDIO_STORAGE_URL}right.mp3"/>\n`
+        ssml += `  </media>\n`
+        ssml += `  <media begin="0.2s">\n`
+        ssml += `   <audio src="${AUDIO_STORAGE_URL}scott-correct-${random}.mp3"/>\n`
+        ssml += `  </media>\n`
+        ssml += ` </par>\n`
+        ssml += ` <desc>${Utils.escape(text)}</desc>\n`
+        ssml += `</speak>`;
 
         return { ssml, text };
     }
@@ -173,18 +168,18 @@ const ssmlResponder = class {
         //const wrong = this.getRandomItem(audioFiles.answers.wrong);
         const random = 0;
         const text = "Sorry That's wrong.";
-        const ssml =
-            `<speak>
-               <par>
-                <media>
-                    <audio src="${AUDIO_STORAGE_URL}wrong.mp3"/>
-                </media>
-                <media begin="0.2s">
-                    <audio src="${AUDIO_STORAGE_URL}scott-wrong-${random}.mp3"/>
-                </media>
-                </par>
-                <desc>${Utils.escape(text)}</desc>
-            </speak>`;
+        let ssml =
+            `<speak>\n`
+        ssml += ` <par>\n`
+        ssml += `  <media>\n`
+        ssml += `   <audio src="${AUDIO_STORAGE_URL}wrong.mp3"/>\n`
+        ssml += `  </media>\n`
+        ssml += `  <media begin="0.2s">\n`
+        ssml += `   <audio src="${AUDIO_STORAGE_URL}scott-wrong-${random}.mp3"/>\n`
+        ssml += `  </media>\n`
+        ssml += ` </par>\n`
+        ssml += ` <desc>${Utils.escape(text)}</desc>\n`
+        ssml += `</speak>`;
 
         return { ssml, text };
     }
@@ -194,15 +189,16 @@ const ssmlResponder = class {
         return { ssml, text };
     }
     getScoreResponse(score, numAsked) {
-        let ssml;
+        let text;
         if (score === 0) {
-            ssml = `<speak>You haven't gotten any questions right. keep trying.</speak>`
+            text = `You haven't gotten any questions right. keep trying.`
         } else if (score === 1) {
-            ssml = `<speak>You've gotten ${score} question right of ${numAsked}</speak>`;
+            text = `You've gotten ${score} question right of ${numAsked}`;
         } else {
-            ssml = `<speak>You've gotten ${score} of ${numAsked} questions right.</speak>`;
+            text = `You've gotten ${score} of ${numAsked} questions right.`;
         }
-        return { ssml }
+        const ssml = `<speak>${text}</speak>`
+        return { ssml, text }
     }
     getFinalScoreResponse(score, numQuestions) {
 
@@ -210,28 +206,30 @@ const ssmlResponder = class {
         const mid = Math.floor(2 * numQuestions / 3);
         const random = 0;
 
-        let ssml = `<speak>`
-        ssml += `<audio src='${AUDIO_STORAGE_URL}score.mp3'/>`;
-        ssml += Utils.escape(`You got ${score} of ${numQuestions} questions right.`);
-        ssml += `<break time='200ms'/>`
+        let ssml = `<speak>\n`
+        ssml += ` <audio src='${AUDIO_STORAGE_URL}score.mp3'/>\n`;
+        ssml += ' ' + Utils.escape(`You got ${score} of ${numQuestions} questions right.\n`);
+        ssml += ` <break time='200ms'/>\n`
 
         if (score < low) {
-            ssml += `<audio src='${AUDIO_STORAGE_URL}scott-low-${random}.mp3'/>`;
+            ssml += `  <audio src='${AUDIO_STORAGE_URL}scott-low-${random}.mp3'/>\n`;
         } else if (score < mid) {
-            ssml += `<audio src='${AUDIO_STORAGE_URL}scott-mid-${random}.mp3'/>`;
+            ssml += `  <audio src='${AUDIO_STORAGE_URL}scott-mid-${random}.mp3'/>\n`;
         } else {
-            ssml += `<audio src='${AUDIO_STORAGE_URL}scott-high-${random}.mp3'/>`;
+            ssml += `  <audio src='${AUDIO_STORAGE_URL}scott-high-${random}.mp3'/>\n`;
         }
 
-        ssml += `<break time='800ms'/>`
-        ssml += `<desc>${Utils.escape("Do you want to try again?")}</desc>`;
-        ssml += `${Utils.escape("Do you want to try again?")}`;
+        ssml += `  <break time='800ms'/>\n`
+        ssml += `  <desc>${Utils.escape("Do you want to try again?")}</desc>\n`;
+        ssml += `        ${Utils.escape("Do you want to try again?")}\n`;
+        ssml += `</speak>`;
 
-
-
+        let text = `You got ${score} of ${numQuestions} questions right. `;
+        text += "Do you want to try again?";
 
         return {
-            ssml: ssml
+            ssml: ssml,
+            text: text
         }
 
     }
