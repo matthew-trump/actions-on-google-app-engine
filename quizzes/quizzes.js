@@ -11,23 +11,28 @@ class Quizzes {
         conv.data.round.score = 0;
 
         if (typeof conv.data.taken === 'undefined') {
-            console.log("conv.data.round.taken undefined")
+            //console.log("conv.data.round.taken undefined")
             conv.data.taken = 0
         } else {
-            console.log("conv.data.round.taken defined", conv.data.round.taken)
+            //console.log("conv.data.round.taken defined", conv.data.round.taken)
             conv.data.taken += 1;
         }
-        console.log("set to", conv.data.taken);
+        //console.log("set to", conv.data.taken);
 
         return items;
     }
     async getQuestion(conv, options) {
         const item = await Rounds.getItem(conv, options);
         const question = this.parseQuestion(item);
+        //console.log("GET QUESTION shuffle", options.questionIndex, options.shuffle);
         if (options.shuffle) {
+            //console.log("SHUFFLE ARRAY", shuffleArray([0, 1, 2]));
             question.answers = shuffleArray(question.answers);
             const indices = question.answers.map(a => a.index);
+
             conv.data.round.indices = indices;
+            //console.log("INDICES SET", conv.data.round.indices);
+
         } else if (options.keepLastOrder && conv.data.round.indices) {
             question.answers = conv.data.round.indices.map((index) => {
                 return question.answers.filter(a => { return a.index === index })[0]
