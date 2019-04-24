@@ -93,11 +93,11 @@ const ssmlResponder = class {
         const breakst1 = ssmlBreak ? "<break time='200ms'>" : "";
         const breakst2 = ssmlBreak ? "<break time='200ms'>" : "...";
 
-        return Utils.escape(`Today's quiz is ${length} ${qword}.${breakst1} The  category is ${breakst2} ${category}.`);
+        return Utils.escape(`Today's quiz is ${length} ${qword} ${breakst1} in the category ${breakst2} ${category}.${breakst1}`);
     }
     getAnotherRoundResponse(numQuestions, category) {
-        const text = `Great! Here's another quiz of ${numQuestions} questions in the category ${category}`;
-        const ssml = `<speak>${text}</speak>`;
+        const text = `Great! Here's another quiz of ${numQuestions} questions in the category ${category}.`;
+        const ssml = `<speak>${text}<break time='200ms'></speak>`;
         return { text, ssml };
     }
     getWelcomeResponse(returning, numQuestions, category) {
@@ -112,7 +112,7 @@ const ssmlResponder = class {
         const audioBackgroundSoundLevel = welcomeConfig.audioBackground.soundLevel;
         const audioInitialDelay = welcomeConfig.audio.initialDelay;
         const audioFile = welcomeConfig.audio.prefix
-            + Utils.getRandomIndex(welcomeConfig.audio.randomIndex)
+            + '1'
             + welcomeConfig.audio.suffix;
 
         const ssml = SKIP_MEDIA_INTRO ? `<speak>${Utils.escape(text)}</speak>` :
@@ -143,7 +143,8 @@ const ssmlResponder = class {
         const tags = [];
 
         const prompts = PROMPTS[Utils.getItemRanking(questionIndex, numQuestions)];
-        const prompt = prompts[Utils.getRandomIndex(prompts.length)]
+        const random = Utils.getRandomIndex(prompts.length);
+        const prompt = prompts[random]
             .replace(/\$NUMBER/g, "" + (questionIndex + 1) + "")
             .replace(/\$ORDINAL/g, questionIndex < ORDINALS.length ? ORDINALS[questionIndex] : 'next')
 
@@ -174,7 +175,7 @@ const ssmlResponder = class {
     }
     getAnswerCorrectResponse() {
         //const correct = this.getRandomItem(audioFiles.answers.correct);
-        const random = 0;
+        const random = 1;
         const text = "That's correct!";
         let ssml = `<speak>\n`
         ssml += ` <par>\n`
@@ -192,7 +193,7 @@ const ssmlResponder = class {
     }
     getAnswerWrongResponse() {
         //const wrong = this.getRandomItem(audioFiles.answers.wrong);
-        const random = 0;
+        const random = 1;
         const text = "Sorry That's wrong.";
         let ssml =
             `<speak>\n`
@@ -230,7 +231,7 @@ const ssmlResponder = class {
 
         const low = Math.floor(numQuestions / 3);
         const mid = Math.floor(2 * numQuestions / 3);
-        const random = 0;
+        const random = 1;
 
         let ssml = `<speak>\n`
         ssml += ` <audio src='${AUDIO_STORAGE_URL}score.mp3'/>\n`;
@@ -261,7 +262,7 @@ const ssmlResponder = class {
     }
     getGameEndResponse() {
 
-        const random = 0;
+        const random = 1;
 
         const ssml = `<audio src=${AUDIO_STORAGE_URL}scott-end-${random}.mp3'/>`;
         return {
