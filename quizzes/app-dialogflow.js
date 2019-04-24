@@ -155,6 +155,12 @@ app.intent(GAME.RESTART_NO, async (conv) => {
 app.intent(GAME.QUIT, async (conv) => {
     conv.close();
 })
+app.intent("Default Fallback Intent", (conv) => {
+    conv.ask("I'm sorry I didn't understand that.")
+})
+app.intent("actions_intent_CANCEL", (conv) => {
+    conv.ask("Thanks for playing!")
+})
 
 
 
