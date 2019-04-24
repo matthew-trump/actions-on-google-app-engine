@@ -9,7 +9,7 @@ const IMMERSIVE_URL = process.env.IMMERSIVE_URL;
 
 const GAME = INTENT.GAME;
 const STATE = {
-    INTRO: "intro",
+    WELCOME: "welcome",
     QUESTION: "question",
     SCORE: "score"
 }
@@ -45,12 +45,11 @@ app.intent(GAME.QUESTION_REPEAT, async (conv, params) => {
             immersiveResponse: {
                 updatedState: {
                     view: STATE.QUESTION,
-                    repeat: true,
-                    questionIndex: conv.data.round.index,
                     question: {
-                        ssml: questionResponse.ssml,
-                        text: questionResponse.text,
-                        choices: questionResponse.choices
+                        repeat: true,
+                        speech: questionResponse.ssml,
+                        text: question.text,
+                        answers: question.answers
                     }
                 }
             }
@@ -73,27 +72,33 @@ app.intent(GAME.QUESTION_REPEAT, async (conv, params) => {
 app.intent(GAME.CHOICE_ORDINAL, async (conv, params) => {
     await Quizzes.ensureLoaded(conv);
     const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
-    const answerIndex = getAnswerIndexOrdinal(question.answers, conv.data.round.indices[params.ordinal]);
-    return handleAnswerChoice(conv, question, answerIndex);
+    const matchIndex = parseInt(params.ordinal);
+    const answerIndex = getAnswerIndexFromOrdinal(question.answers, conv.data.round.indices[matchIndex]);
+    return handleAnswerChoice(conv, question, matchIndex, answerIndex);
 });
 
 app.intent(GAME.CHOICE_MIDDLE, async (conv) => {
     await Quizzes.ensureLoaded(conv);
     const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
-    const answerIndex = getAnswerIndexOrdinal(question.answers, conv.data.round.indices[1]);
-    return handleAnswerChoice(conv, question, answerIndex);
+    const matchIndex = 1;
+    const answerIndex = getAnswerIndexFromOrdinal(question.answers, conv.data.round.indices[matchIndex]);
+    return handleAnswerChoice(conv, question, matchIndex, answerIndex);
 });
 app.intent(GAME.CHOICE_LAST, async (conv) => {
     await Quizzes.ensureLoaded(conv);
     const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
-    const answerIndex = getAnswerIndexOrdinal(question.answers, conv.data.round.indices[2]);
-    return handleAnswerChoice(conv, question, answerIndex);
+    const matchIndex = 2;
+    const answerIndex = getAnswerIndexFromOrdinal(question.answers, conv.data.round.indices[matchIndex]);
+    return handleAnswerChoice(conv, question, matchIndex, answerIndex);
 });
 app.intent(GAME.CHOICE_ANSWER, async (conv) => {
     await Quizzes.ensureLoaded(conv);
     const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
-    const answerIndex = getAnswerIndex(question.answers, conv.query);
-    return handleAnswerChoice(conv, question, answerIndex);
+    const answerIndex = getAnswerIndexFromQueryMatch(question.answers, conv.query);
+    console.log("ANSWER INDEX", answerIndex, conv.data.round.indices);
+    const matchIndex = conv.data.round.indices.indexOf(answerIndex);
+    console.log("MATCH INDEX", matchIndex);
+    return handleAnswerChoice(conv, question, matchIndex, answerIndex);
 });
 app.intent(GAME.SCORE, async (conv) => {
     await Quizzes.ensureLoaded(conv);
@@ -105,14 +110,15 @@ app.intent(GAME.SCORE, async (conv) => {
             immersiveResponse: {
                 updatedState: {
                     view: STATE.SCORE,
-                    score: conv.data.round.score,
-                    finalScore: finalScoreResponse.ssml
+                    score: {
+                        speech: finalScoreResponse.ssml,
+                        value: conv.data.round.score
+                    }
                 }
             }
         })
         conv.contexts.set(CONTEXT.GAME_RESTART, 1);
     } else {
-        const repeat = true;
         const scoreResponse = ssmlResponder.getScoreResponse(conv.data.round.score, conv.data.round.index + 1);
         //const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index, keepLastOrder: true });
         //const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.round.index, conv.data.round.items.length, repeat);
@@ -127,6 +133,17 @@ app.intent(GAME.SCORE, async (conv) => {
     }
 
 })
+app.intent(GAME.RESTART, async (conv) => {
+    const query = conv.query;
+    const restart = query.toLowerCase().split(" ").indexOf("yes") !== -1;
+    console.log("GAME RESTART", query, restart);
+    if (restart) {
+        return startNewQuiz(conv, true)
+    } else {
+        conv.close();
+    }
+});
+
 app.intent(GAME.RESTART_YES, async (conv) => {
     return startNewQuiz(conv, true)
 });
@@ -152,25 +169,26 @@ const normalizeValue = (value) => {
         .replace(/ /g, "");
 }
 
-const getAnswerIndex = (answers, choice) => {
+const isMatched = (answer, ctext) => {
+    const atext = normalizeValue(answer.text);
+    return atext.length > 0 && new levenshtein(ctext, atext).distance <= 1;
+}
+const getAnswerIndexFromQueryMatch = (answers, choice) => {
+    console.log("getAnswerIndexFromQueryMatch", answers, choice);
     const ctext = normalizeValue(choice);
+    let match = -1;
     if (ctext.length > 0) {
-        const result = answers
-            .filter((answer) => {
-                const atext = normalizeValue(answer.text);
-                return (atext.length > 0 && new levenshtein(ctext, atext).distance <= 1);
-            })
-            .map((answer) => {
-                return answer.index;
-            });
-        if (result.length > 0) {
-            return result[0]
-        }
+        answers.forEach((answer, index) => {
+            if (isMatched(answer, ctext) && match < 0) {
+                console.log("FOUND MATCH AT", index);
+                match = index;
+            }
+        });
     }
-    return -1;
+    return match;
 }
 
-const getAnswerIndexOrdinal = (answers, ordinal) => {
+const getAnswerIndexFromOrdinal = (answers, ordinal) => {
     if (ordinal < answers.length) {
         return answers[ordinal].index;
     } else {
@@ -183,23 +201,29 @@ const startNewQuiz = async (conv, returning) => {
 
     const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index, shuffle: true });
 
-    const welcomeResponse = ssmlResponder.getWelcomeResponse(returning);
-    const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.round.index, conv.data.round.items.length, false);
+    const welcomeResponse = conv.data.taken < 1 ? ssmlResponder.getWelcomeResponse(returning, conv.data.round.items.length, conv.data.round.category.name)
+        : ssmlResponder.getAnotherRoundResponse(conv.data.round.items.length, conv.data.round.category.name);
+    const questionResponse = ssmlResponder.getQuestionResponse(question, conv.data.round.index, conv.data.round.items.length, false, conv.data.round.category.name, conv.data.taken);
 
     useImmersiveContent(conv) ? conv.ask(
         {
             immersiveResponse: {
                 loadImmersiveUrl: IMMERSIVE_URL,
                 updatedState: {
-                    view: STATE.INTRO,
-                    taken: conv.data.taken,
-                    length: conv.data.round.items.length,
-                    questionIndex: conv.data.round.index,
-                    welcome: welcomeResponse.ssml,
+                    view: STATE.WELCOME,
+                    quiz: {
+                        index: conv.data.taken,
+                        length: conv.data.round.items.length,
+                        category: conv.data.round.category.name
+                    },
+                    welcome: {
+                        returning: !!returning,
+                        speech: welcomeResponse.ssml
+                    },
                     question: {
-                        ssml: questionResponse.ssml,
-                        text: questionResponse.text,
-                        choices: questionResponse.choices
+                        speech: questionResponse.ssml,
+                        text: question.text,
+                        answers: question.answers
                     }
                 }
             }
@@ -219,10 +243,11 @@ const startNewQuiz = async (conv, returning) => {
 }
 
 
-handleAnswerChoice = async (conv, question, answerIndex) => {
+handleAnswerChoice = async (conv, question, matchIndex, answerIndex) => {
 
     const correct = answerIndex === 0;
     const recognized = answerIndex !== -1;
+    const correctIndex = conv.data.round.indices.indexOf(0);
 
     if (recognized) {
         Quizzes.setLatest(conv, { questionIndex: conv.data.round.index, answerIndex: answerIndex });
@@ -248,16 +273,16 @@ handleAnswerChoice = async (conv, question, answerIndex) => {
                     immersiveResponse: {
                         updatedState: {
                             view: STATE.QUESTION,
-                            answerIndex: answerIndex,
-                            answer: answerResponse.ssml,
-                            repeat: false,
-                            questionIndex: conv.data.round.index,
-                            score: conv.data.round.score,
-                            prompt: questionResponse.ssmlPrompt,
+                            answer: {
+                                speech: answerResponse.ssml,
+                                matchIndex: matchIndex,
+                                correctIndex: correctIndex
+                            },
                             question: {
-                                ssml: questionResponse.ssmlQuestion,
-                                text: questionResponse.text,
-                                choices: questionResponse.choices
+                                repeat: false,
+                                speech: questionResponse.ssml,
+                                text: nextQuestion.text,
+                                answers: nextQuestion.answers
                             }
                         }
                     }
@@ -270,10 +295,16 @@ handleAnswerChoice = async (conv, question, answerIndex) => {
                     immersiveResponse: {
                         updatedState: {
                             view: STATE.SCORE,
-                            score: conv.data.round.score,
-                            answer: answerResponse.ssml,
-                            finalScore: finalScoreResponse.ssml,
-                            answerIndex: answerIndex
+                            answer: {
+                                speech: answerResponse.ssml,
+                                matchIndex: matchIndex,
+                                correctIndex: correctIndex
+                            },
+                            score: {
+                                speech: finalScoreResponse.ssml,
+                                value: conv.data.round.score,
+                                total: conv.data.round.items.length
+                            }
                         }
                     }
                 })
