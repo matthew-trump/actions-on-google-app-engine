@@ -93,7 +93,7 @@ app.intent(GAME.CHOICE_LAST, async (conv) => {
 });
 app.intent(GAME.CHOICE_ANSWER, async (conv) => {
     await Quizzes.ensureLoaded(conv);
-    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index });
+    const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index, keepLastOrder: true });
     const answerIndex = getAnswerIndexFromQueryMatch(question.answers, conv.query);
     console.log("ANSWER INDEX", answerIndex, conv.data.round.indices);
     const matchIndex = conv.data.round.indices.indexOf(answerIndex);
@@ -176,16 +176,17 @@ const isMatched = (answer, ctext) => {
 const getAnswerIndexFromQueryMatch = (answers, choice) => {
     console.log("getAnswerIndexFromQueryMatch", answers, choice);
     const ctext = normalizeValue(choice);
-    let match = -1;
+    let matches = [];
     if (ctext.length > 0) {
         answers.forEach((answer, index) => {
-            if (isMatched(answer, ctext) && match < 0) {
-                console.log("FOUND MATCH AT", index);
-                match = index;
+            if (isMatched(answer, ctext)) {
+                console.log("FOUND MATCH AT", index, "(returning " + answer.index + ")");
+                matches.push(answer.index);
             }
         });
     }
-    return match;
+
+    return matches.length > 0 > 0 ? (matches.sort())[0] : -1;
 }
 
 const getAnswerIndexFromOrdinal = (answers, ordinal) => {
@@ -367,17 +368,16 @@ handleAnswerChoice = async (conv, question, matchIndex, answerIndex) => {
                 immersiveResponse: {
                     updatedState: {
                         view: STATE.QUESTION,
-                        answerIndex: answerIndex,
-                        answer: answerResponse.ssml,
-                        prompt: questionResponse.ssmlPrompt,
-                        question: {
-                            ssml: questionResponse.ssmlQuestion,
-                            text: questionResponse.text,
-                            choices: questionResponse.choices
+                        answer: {
+                            matchIndex: -1,
+                            speech: answerResponse.ssml
                         },
-                        questionIndex: conv.data.questionIndex,
-                        repeat: repeat,
-                        score: conv.data.round.score
+                        question: {
+                            repeat: repeat,
+                            speech: questionResponse.ssml,
+                            text: question.text,
+                            answers: question.answers
+                        }
                     }
                 }
             });
