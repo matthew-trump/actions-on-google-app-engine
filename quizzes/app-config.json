@@ -14,7 +14,7 @@
             }
         },
         "returning": {
-            "text": "Welcome back! Here comes the first question.",
+            "text": "Welcome back!",
             "audio": {
                 "initialDelay": "2.0s",
                 "prefix": "scott-return-",
