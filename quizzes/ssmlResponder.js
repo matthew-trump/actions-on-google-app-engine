@@ -87,11 +87,27 @@ const ssmlResponder = class {
 
     constructor() { }
 
-    getWelcomeResponse(returning) {
+    getQuizAnnouncement(category, length, ssmlBreak) {
+        const qword = length > 0 ? 'questions' : 'question';
+
+        const breakst1 = ssmlBreak ? "<break time='200ms'>" : "";
+        const breakst2 = ssmlBreak ? "<break time='200ms'>" : "...";
+
+        return Utils.escape(`Today's quiz is ${length} ${qword}.${breakst1} The  category is ${breakst2} ${category}.`);
+    }
+    getAnotherRoundResponse(numQuestions, category) {
+        const text = `Great! Here's another quiz of ${numQuestions} questions in the category ${category}`;
+        const ssml = `<speak>${text}</speak>`;
+        return { text, ssml };
+    }
+    getWelcomeResponse(returning, numQuestions, category) {
         const welcomeConfig = returning ? config.welcome.returning : config.welcome.new;
 
 
-        const text = welcomeConfig.text;
+        let text = welcomeConfig.text;
+        text += " " + this.getQuizAnnouncement(category, numQuestions, false);
+        text += " Here's the first question."
+
         const audioBackgroundFile = welcomeConfig.audioBackground.file;
         const audioBackgroundSoundLevel = welcomeConfig.audioBackground.soundLevel;
         const audioInitialDelay = welcomeConfig.audio.initialDelay;
@@ -114,7 +130,13 @@ const ssmlResponder = class {
 
         return { ssml, text };
     }
-    getQuestionResponse(question, questionIndex, numQuestions, repeat) {
+    getQuestionResponse(question,
+        questionIndex,
+        numQuestions,
+        repeat,
+        category,
+        taken
+    ) {
         const choices = question.answers.map(a => a.text);
         const spoken = choices.slice(0);
         spoken.splice(2, 0, "or");
@@ -127,6 +149,10 @@ const ssmlResponder = class {
 
         let ssml = '<speak>';
         if (!repeat) {
+            if (questionIndex === 0 && !(taken > 0)) {
+                ssml += this.getQuizAnnouncement(category, numQuestions, true);
+                ssml += "<break time='1000ms'/>";
+            }
             ssml += Utils.escape(prompt);
         } else {
             ssml += Utils.escape("let's try that again");
