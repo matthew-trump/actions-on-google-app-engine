@@ -63,6 +63,7 @@
             "plural": "questions",
             "table": "question",
             "enablement": "status",
+            "add": true,
             "defaultEnabled": 1,
             "filter": [
                 {
