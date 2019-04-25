@@ -40,11 +40,15 @@ class Quizzes {
         }
         return question;
     }
-    setLatest(conv, options) {
-
+    setLatest(conv, latest) {
+        console.log("LATEST", latest);
+        Rounds.setLatest(conv, latest);
+        console.log("conv.data.round.latest", conv.data.round.latest);
     }
     recordResponse(conv) {
-
+        Rounds.recordResponse(conv);
+        conv.data.round.shown.push(conv.data.round.items[conv.data.round.latest.questionIndex]);
+        console.log("SHOWN", conv.data.round.shown);
     }
     saveResults(conv, options) {
 
