@@ -135,10 +135,31 @@ router.get('/entities/:plural',
             const fieldNames = entityConfig.fields.map(field => {
                 return field.name;
             })
+            /** 
+            const fieldLikeNames = entityConfig.fields.filter(field => {
+                return field.multiple;
+            }).map(field => field.name);
+            */
+
+
             Object.keys(req.query).map((key) => {
+
                 if (fieldNames.indexOf(key) !== -1) {
+                    /**
+                if (fieldLikeNames.indexOf(key) !== -1) {
+                    //console.log("FIELD NAME LIKE",key,value);
+                    const value = req.query[key];
+                    console.log("FIELD NAME LIKE", key, value);
+                    const values = Array.isArray(value) ? value : [value];
+                    queryObj.filterLike = values.map((val) => {
+                        return [key, "LIKE", "%c" + val + "c%"];
+                    });
+                    console.log("SET QUERY OBJ", queryObj.filterLike);
+                } else {
+                 */
                     queryObj.filter = queryObj.filter || {};
                     queryObj.filter[key] = req.query[key];
+                    /**  }*/
                 }
             });
             if (entityConfig.enablement && typeof req.query[entityConfig.enablement] !== 'undefined') {
@@ -192,13 +213,13 @@ const getEntityFromDatabaseObject = (entityConfig, object) => {
         const name = config.name;
         const value = object[name];
 
-        if (config.multiple && !Array.isArray(value)) {
-            const amalgamateOn = config.amalgamateOn || ":";
+        if (config.multiple) {
+            const amalgamateOn = config.amalgamateOn || "c";
             const aLength = amalgamateOn.length;
             try {
                 if (value[0] === amalgamateOn) {
-
-                    entity[name] = value.substring(aLength, value.length - (aLength)).split(amalgamateOn)
+                    const array = value.substring(aLength, value.length - (aLength)).split(amalgamateOn)
+                    entity[name] = config.foreignKey ? array.map((v) => parseInt(v)) : array;
                 } else {
                     entity[name] = [object[name]]
                 }
@@ -221,8 +242,7 @@ const getEntityDatabaseObjectFromRequest = (entityConfig, update) => {
         if (config.multiple && Array.isArray(update[name])) {
 
             if (update[name].length > 0) {
-                const amalgamateOn = config.amalgamateOn || ":";
-
+                const amalgamateOn = config.amalgamateOn || "c";
                 obj[name] = amalgamateOn + (update[name]).join(amalgamateOn) + amalgamateOn;
             } else {
                 obj[name] = null;
