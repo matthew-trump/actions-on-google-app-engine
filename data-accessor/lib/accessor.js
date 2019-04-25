@@ -24,8 +24,12 @@ const accessor = class {
             this.entityCacheMap = {};
             this.scheduleItemCache = {};
             this.poolEntryCache = {};
-            this.loadCurrentScheduled();
-            this.resetLoaderTimer()
+            if (LOADER_TIMER_INTERVAL_SECONDS > 0) {
+                this.loadCurrentScheduled();
+                this.resetLoaderTimer()
+            } else {
+                console.log("NO SCHEDULE TIME CONFIGURED");
+            }
         } else {
             console.log("NO DATABASE CONNECTION CONFIGURED");
         }
