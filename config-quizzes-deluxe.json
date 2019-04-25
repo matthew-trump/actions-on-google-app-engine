@@ -3,7 +3,7 @@
         {
             "name": "category",
             "plural": "categories",
-            "table": "category",
+            "table": "Categories",
             "add": true,
             "fields": [
                 {
@@ -15,10 +15,21 @@
         {
             "name": "question",
             "plural": "questions",
-            "table": "question",
+            "table": "Questions",
             "enablement": "status",
             "add": true,
             "defaultEnabled": 1,
+            "filter": [
+                {
+                    "entity": "categories",
+                    "field": "categories",
+                    "label": "name",
+                    "all": true
+                }
+            ],
+            "search": {
+                "field": "text"
+            },
             "fields": [
                 {
                     "name": "text",
@@ -28,8 +39,8 @@
                     "name": "categories",
                     "editable": true,
                     "foreignKey": "categories",
-                    "amalgamateOn": ":",
                     "multiple": true,
+                    "intersection_table": "QuestionCategories",
                     "label": "name",
                     "none": "General"
                 }
