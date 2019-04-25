@@ -16,6 +16,7 @@ const rounds = class {
             }
         } else if (SESSION_NO_REPEAT_ENTRIES) {
             excluded = conv.data.round ? conv.data.round.shown : [];
+            console.log("EXCLUDED", excluded)
         }
         let key;
         let loadOptions;
@@ -109,12 +110,15 @@ const rounds = class {
         return this.getItemFromEntity(pObj, entity);
     }
     async recordResponse(conv, data = {}) {
-        return;
+        if (!conv.data.round.shown) {
+            conv.data.round.shown = [];
+        }
+        console.log("SHOWN", conv.data.round.shown);
     }
     async saveResults(conv, options = {}) {
         return
     }
-    async setLatest(conv) {
+    async setLatest(conv, latest) {
         conv.data.round.latest = latest;
     }
     async getNumEntries(conv) {
