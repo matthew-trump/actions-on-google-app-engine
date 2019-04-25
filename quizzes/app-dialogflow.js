@@ -31,9 +31,7 @@ const Quizzes = require("./quizzes");
 app.intent(GAME.START, async (conv) => {
     return startNewQuiz(conv, conv.user.last.seen)
 });
-app.intent("moo", async (conv) => {
-    conv.ask('moooo!');
-});
+
 
 app.intent(GAME.QUESTION_REPEAT, async (conv, params) => {
     await Quizzes.ensureLoaded(conv);
@@ -95,9 +93,7 @@ app.intent(GAME.CHOICE_ANSWER, async (conv) => {
     await Quizzes.ensureLoaded(conv);
     const question = await Quizzes.getQuestion(conv, { index: conv.data.round.index, keepLastOrder: true });
     const answerIndex = getAnswerIndexFromQueryMatch(question.answers, conv.query);
-    console.log("ANSWER INDEX", answerIndex, conv.data.round.indices);
     const matchIndex = conv.data.round.indices.indexOf(answerIndex);
-    console.log("MATCH INDEX", matchIndex);
     return handleAnswerChoice(conv, question, matchIndex, answerIndex);
 });
 app.intent(GAME.SCORE, async (conv) => {
@@ -136,7 +132,6 @@ app.intent(GAME.SCORE, async (conv) => {
 app.intent(GAME.RESTART, async (conv) => {
     const query = conv.query;
     const restart = query.toLowerCase().split(" ").indexOf("yes") !== -1;
-    console.log("GAME RESTART", query, restart);
     if (restart) {
         return startNewQuiz(conv, true)
     } else {
@@ -151,10 +146,13 @@ app.intent(GAME.RESTART_NO, async (conv) => {
     conv.close(
         new SimpleResponse(ssmlResponder.getGameEndResponse())
     );
-})
+});
 app.intent(GAME.QUIT, async (conv) => {
     conv.close();
-})
+});
+app.intent("moo", async (conv) => {
+    conv.ask('moooo!');
+});
 app.intent("Default Fallback Intent", (conv) => {
     conv.ask("I'm sorry I didn't understand that.")
 })
@@ -180,13 +178,11 @@ const isMatched = (answer, ctext) => {
     return atext.length > 0 && new levenshtein(ctext, atext).distance <= 1;
 }
 const getAnswerIndexFromQueryMatch = (answers, choice) => {
-    console.log("getAnswerIndexFromQueryMatch", answers, choice);
     const ctext = normalizeValue(choice);
     let matches = [];
     if (ctext.length > 0) {
         answers.forEach((answer, index) => {
             if (isMatched(answer, ctext)) {
-                console.log("FOUND MATCH AT", index, "(returning " + answer.index + ")");
                 matches.push(answer.index);
             }
         });
