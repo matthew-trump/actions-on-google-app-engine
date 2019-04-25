@@ -31,7 +31,7 @@ router.get('/database/ping',
                 res.status(200).json({ result: result });
             },
             (err) => {
-                cosole.log(err);
+                console.log(err);
                 res.status(400).json({ error: err });
             }
         );
@@ -152,7 +152,10 @@ router.get('/entities/:plural',
             /**
              * must add offset condition AFTER getting total or else total returns empty array for nonzero offset
              */
-            const entities = await (offset > 0 ? dbQuery.offset(offset) : dbQuery);
+            const dbObjects = await (offset > 0 ? dbQuery.offset(offset) : dbQuery);
+            const entities = dbObjects.map((dbObject) => {
+                return getEntityFromDatabaseObject(entityConfig, dbObject);
+            })
             queryObj.offset = offset;
             res.status(200).json({ query: queryObj, total: total[0]["count(*)"], returned: entities.length, entities: entities });
         } else {
@@ -182,6 +185,29 @@ router.put('/entities/:plural/:id',
         }
 
     });
+const getEntityFromDatabaseObject = (entityConfig, object) => {
+    const entity = Object.assign({}, object);
+
+    entityConfig.fields.map((config) => {
+        const name = config.name;
+        const value = object[name];
+
+        if (config.multiple && !Array.isArray(value)) {
+            const amalgamateOn = config.amalgamateOn || ":";
+            const aLength = amalgamateOn.length;
+            try {
+                if (value[0] === amalgamateOn) {
+
+                    entity[name] = value.substring(aLength, value.length - (aLength)).split(amalgamateOn)
+                } else {
+                    entity[name] = [object[name]]
+                }
+            } catch (err) { }
+        }
+    });
+
+    return entity;
+}
 const getEntityDatabaseObjectFromRequest = (entityConfig, update) => {
     const obj = Object.assign({}, update);
     if (entityConfig.search && entityConfig.search.compose) {
@@ -189,6 +215,22 @@ const getEntityDatabaseObjectFromRequest = (entityConfig, update) => {
             return update[field]
         })).join(entityConfig.search.separator);
     }
+    entityConfig.fields.map((config) => {
+        const name = config.name;
+
+        if (config.multiple && Array.isArray(update[name])) {
+
+            if (update[name].length > 0) {
+                const amalgamateOn = config.amalgamateOn || ":";
+
+                obj[name] = amalgamateOn + (update[name]).join(amalgamateOn) + amalgamateOn;
+            } else {
+                obj[name] = null;
+            }
+
+        }
+
+    })
     return obj;
 }
 router.post('/entities/:plural',
