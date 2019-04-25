@@ -1,0 +1,39 @@
+{
+    "entities": [
+        {
+            "name": "category",
+            "plural": "categories",
+            "table": "category",
+            "add": true,
+            "fields": [
+                {
+                    "name": "name",
+                    "editable": true
+                }
+            ]
+        },
+        {
+            "name": "question",
+            "plural": "questions",
+            "table": "question",
+            "enablement": "status",
+            "add": true,
+            "defaultEnabled": 1,
+            "fields": [
+                {
+                    "name": "text",
+                    "editable": true
+                },
+                {
+                    "name": "categories",
+                    "editable": true,
+                    "foreignKey": "categories",
+                    "amalgamateOn": ":",
+                    "multiple": true,
+                    "label": "name",
+                    "none": "General"
+                }
+            ]
+        }
+    ]
+}
