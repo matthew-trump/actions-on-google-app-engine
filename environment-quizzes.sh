@@ -15,6 +15,7 @@ export ADMIN_SESSION_EXPIRY_IN_SECONDS=2592000
 
 export SECRET_KEY="1B24A72B14D94AFBB27D94E384FDC"
 export LOADER_TIMER_INTERVAL_SECONDS=1800
+export SESSION_NO_REPEAT_ENTRIES=1
 
 export IMMERSIVE_URL="http://localhost:4206/"
 export AUDIO_STORAGE_URL="https://storage.googleapis.com/hqu-alpha.appspot.com/"
