@@ -49,16 +49,37 @@ const database = class {
         return this.db(PING_TABLE);
     }
     getEntities(table, queryObj) {
+        console.log("DATABASE GET ENTITIES", queryObj);
+
         let dbQuery = this.db(table);
+        let useAnd = false;
+
         if (queryObj.filter) {
-            dbQuery = dbQuery.where(queryObj.filter)
+            dbQuery = dbQuery.where(queryObj.filter);
+            useAnd = true;
         }
+        if (queryObj.filterLike) {
+            queryObj.filterLike.forEach(filterLike => {
+                if (useAnd) {
+                    dbQuery = dbQuery.andWhere(...filterLike);
+                } else {
+                    dbQuery = dbQuery.where(...filterLike);
+                }
+                useAnd = true;
+            })
+        }
+
         if (queryObj.search) {
-            dbQuery = dbQuery.where(queryObj.search.field, 'like', queryObj.search.value);
+            if (useAnd) {
+                dbQuery = dbQuery.andWhere(queryObj.search.field, 'like', queryObj.search.value);
+            } else {
+                dbQuery = dbQuery.where(queryObj.search.field, 'like', queryObj.search.value);
+            }
         }
         if (queryObj.limit) {
             dbQuery = dbQuery.limit(parseInt(queryObj.limit));
         }
+        console.log("SQL", dbQuery.toSQL());
         return dbQuery;
     }
     updateEntity(table, id, update) {
