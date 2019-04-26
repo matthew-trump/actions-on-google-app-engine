@@ -283,7 +283,224 @@ const accessor = class {
 
         return round;
     }
+    getEntityFromDatabaseObject(entityConfig, object) {
+        return object;
+    }
+    getEntityDatabaseObjectFromRequest(entityConfig, update) {
+        const obj = Object.assign({}, update);
+        if (entityConfig.search && entityConfig.search.compose) {
+            obj[entityConfig.search.field] = entityConfig.search.compose.map((field => {
+                return update[field]
+            })).join(entityConfig.search.separator);
+        }
+        entityConfig.fields.map((config) => {
+            const name = config.name;
 
+            if (config.multiple && Array.isArray(update[name])) {
+
+                if (update[name].length > 0) {
+                    const amalgamateOn = config.amalgamateOn || "c";
+                    obj[name] = amalgamateOn + (update[name]).join(amalgamateOn) + amalgamateOn;
+                } else {
+                    obj[name] = null;
+                }
+            }
+
+        })
+        return obj;
+    }
+    async addEntities(plural, entities) {
+        return new Promise(async (resolve, reject) => {
+            let entityConfig = this.getEntityConfig(plural);
+            if (entityConfig) {
+                const dbObjects = entities.map((entity) => {
+                    return this.getEntityDatabaseObjectFromRequest(entityConfig, entity);
+                });
+                const result = await this.database.addEntities(entityConfig.table, dbObjects);
+                resolve({ result: result })
+            } else {
+                reject({ error: { message: "Entity " + plural + " not found." } })
+            }
+        })
+    }
+    async updateEntity(plural, id, update) {
+        return new Promise(async (resolve, reject) => {
+            let entityConfig = this.getEntityConfig(plural);
+            if (entityConfig) {
+                const updateObj = this.getEntityDatabaseObjectFromRequest(entityConfig, update);
+                this.database.updateEntity(entityConfig.table, id, updateObj
+                ).then(
+                    _ => {
+                        resolve({ id: id })
+                    },
+                    (err) => {
+                        reject(err);
+                    }
+                );
+            } else {
+                reject({ error: { message: "Entity " + plural + " not found." } })
+            }
+        })
+    }
+    async getEntities(plural, query) {
+        console.log("GET ENTITIES", plural, query);
+        return new Promise(async (resolve, reject) => {
+            let entityConfig = this.getEntityConfig(plural);
+            if (entityConfig) {
+                const queryObj = {}
+                if (query.limit) {
+                    queryObj.limit = parseInt(query.limit);
+                }
+                if (query.search && entityConfig.search) {
+                    if (entityConfig.search.field) {
+                        queryObj.search = { field: entityConfig.table + "." + entityConfig.search.field, value: '%' + query.search + '%' };
+                    } else {
+                        console.log("WARNING: NO SEARCH AS entityConfig.search.field not found");
+                    }
+                }
+
+                if (entityConfig.filter) {
+                    const qKeys = Object.keys(query);
+                    for (let i = 0, len = qKeys.length; i < len; i++) {
+                        const key = qKeys[i];
+                        const filterConfig = entityConfig.filter.find(field => { return field.field === key });
+                        if (filterConfig) {
+                            const fieldEntityConfig = entityConfig.fields.find(field => { return field.name === key });
+                            if (fieldEntityConfig.multiple) {
+                                if (query[key]) {
+                                    const intersection = fieldEntityConfig.intersection;
+                                    const mode = 1;
+                                    const keyArray = query[key].split(',');
+                                    if (mode === 0) {
+                                        //UNION of categories
+                                        queryObj.join = queryObj.join || [];
+                                        queryObj.join.push([intersection.table, {
+                                            [intersection.table + "." + intersection.primaryKey]: entityConfig.table + ".id"
+                                        }]);
+
+
+                                        if (keyArray.length === 1) {
+                                            queryObj.filter = queryObj.filter || {};
+                                            queryObj.filter[intersection.table + "." + intersection.foreignKey] = keyArray[0];
+                                        } else {
+                                            queryObj.filterIn = queryObj.filterIn || [];
+                                            queryObj.filterIn.push([intersection.table + "." + intersection.foreignKey, keyArray]);
+                                        }
+                                    } else if (mode === 1) {
+                                        const iresults = await this.database.getIntersection(keyArray, intersection, 1);
+                                        //console.log("IRESULTS", iresults);
+                                        const iresultsMap = iresults.reduce((obj, iresult) => {
+                                            //console.log("REDUCE", obj, iresult);
+                                            const pk = iresult.pk;
+                                            obj[pk] = obj[pk] || [];
+                                            obj[pk].push(iresult.fk);
+                                            return obj;
+                                        }, {});
+                                        //console.log("IRESULTS MAP", iresultsMap);
+                                        const intersectionSet = Object.keys(iresultsMap).reduce((array, key, index) => {
+                                            return index === 0 ? iresultsMap[key]
+                                                : array.filter(e => iresultsMap[key].indexOf(e) !== -1);
+                                        }, []);
+                                        queryObj.filterIn = queryObj.filterIn || [];
+                                        queryObj.filterIn.push(["id", intersectionSet]);
+                                        //console.log("KEYS", keyArray);
+                                        //console.log("INTERSECTION SET", intersectionSet);
+
+                                        console.log("QUERY OBJ", queryObj);
+                                    }
+                                }
+
+
+                            } else {
+                                queryObj.filter = queryObj.filter || {};
+                                queryObj.filter[entityConfig.table + "." + key] = query[key];
+                            }
+                        }
+
+                    };
+                }
+
+
+                if (entityConfig.enablement && typeof query[entityConfig.enablement] !== 'undefined') {
+                    queryObj.filter = queryObj.filter || {};
+                    queryObj.filter[entityConfig.table + "." + entityConfig.enablement] = parseInt(query[entityConfig.enablement])
+                }
+
+                const offset = parseInt(query.offset);
+                /**
+                 * Had to use this method to get query to work with both inner join and count
+                 * https://stackoverflow.com/questions/23921117/disable-only-full-group-by
+                 * 
+                 * Original query using this.db(table) in getEntities method in database object
+                 * was returning the id not of the Questions entry but of QuestionCategories
+                 * To fix this, used this.db.select("*").from(table)
+                 * but this brought the error from ONLY_FULL_GROUP_BY
+                 * Fixed this issue using groupBy('Questions.id') at end of query
+                 * but this resulted in the count() operation (on cloned query) bringing back 1 for all queries
+                 * which messed up the pagination in the frontend UI.
+                 * 
+                 * The only way to get around all this was to
+                 * disable ONLY_FULL_GROUP_BY sql option
+                 * which can be done both using /etc/my.cnf like this:
+                 * 
+                 *  [mysqld]  
+                 *  sql_mode = "STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION"
+                 * 
+                 * can check using mysql> SELECT (@@sql_mode); to make sure ONLY_FULL_GROUP_BY not present
+                 * 
+                 * edit: PROBLEM SOLVED!
+                 * The whole issue was caused by the presence of the QuestionCategories.id field which was
+                 * overriding the Questions.id field in in the result of the inner join query.
+                 * This id field is not necessary in an intersection table. Deleting it solved the entire issue
+                 * and query (both inner join and count) work now without tweaking the server options
+                 * to removee ONLY_FULL_GROUP_BY
+                 */
+                const dbQuery = this.database.getEntities(entityConfig.table, queryObj);
+                const total = await dbQuery.clone().count();
+
+                console.log("TOTAL", total);
+                const groupBy = true;
+                /**
+                 * must add offset condition AFTER getting total or else total returns empty array for nonzero offset
+                 * the groupBy here will allow the UNION of multiple fk (e.g. categories[see mode 0 above])to select
+                 * only the unique ones BUT the incorrect total will be returned from the count() function above.
+                 * 'group by' must come AFTER this cloning for the count.
+                 * Cannot figure out a declarative SQL way around this yet. Best thing is to not allow multiple select criteria in filtering for now.
+                 */
+                const dbObjects = await (offset > 0 ? (groupBy ? dbQuery.groupBy('id') : dbQuery).offset(offset) : (groupBy ? dbQuery.groupBy('id') : dbQuery));
+                let entities = dbObjects.map((dbObject) => {
+                    return this.getEntityFromDatabaseObject(entityConfig, dbObject);
+                });
+                /**
+                 * now need to join on multiple foreign keys to create array
+                 * Perhaps this can be done another way declaratively but this way works here
+                 */
+                const entityIds = entities.map(entity => entity.id);
+                const multipleFKConfigs = entityConfig.fields.filter(config => config.multiple);
+                if (multipleFKConfigs.length > 0) {
+                    const multipleFKMap = {};
+                    for (let i = 0, len = multipleFKConfigs.length; i < len; i++) {
+                        const multipleFKConfig = multipleFKConfigs[i];
+                        const intersection = await this.database.getIntersection(entityIds, multipleFKConfig.intersection);
+                        intersection.map((entry) => {
+                            multipleFKMap[entry.pk] = multipleFKMap[entry.pk] || {};
+                            multipleFKMap[entry.pk][multipleFKConfig.name] = multipleFKMap[entry.pk][multipleFKConfig.name] || [];
+                            multipleFKMap[entry.pk][multipleFKConfig.name].push(entry.fk);
+
+                        }, {});
+                    };
+                    entities = entities.map(entity => {
+                        const multipleFKEntityMap = multipleFKMap[entity.id];
+                        return Object.assign({}, entity, multipleFKEntityMap);
+                    })
+                }
+                queryObj.offset = offset;
+                resolve({ query: queryObj, total: total[0]["count(*)"], returned: entities.length, entities: entities })
+            } else {
+                reject({ error: { message: "Entity " + plural + " not found." } })
+            }
+        })
+    }
 
 }
 const DataAccessor = new accessor();
