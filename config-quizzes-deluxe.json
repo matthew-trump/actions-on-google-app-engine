@@ -37,12 +37,16 @@
                 },
                 {
                     "name": "categories",
-                    "editable": true,
                     "foreignKey": "categories",
                     "multiple": true,
-                    "intersection_table": "QuestionCategories",
+                    "intersection": {
+                        "table": "QuestionCategories",
+                        "primaryKey": "question_id",
+                        "foreignKey": "category_id"
+                    },
                     "label": "name",
-                    "none": "General"
+                    "none": "General",
+                    "editable": true
                 }
             ]
         }
