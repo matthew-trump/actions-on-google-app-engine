@@ -127,56 +127,98 @@ router.get('/entities/:plural',
             }
             if (req.query.search && entityConfig.search) {
                 if (entityConfig.search.field) {
-                    queryObj.search = { field: entityConfig.search.field, value: '%' + req.query.search + '%' };
+                    queryObj.search = { field: entityConfig.table + "." + entityConfig.search.field, value: '%' + req.query.search + '%' };
                 } else {
                     console.log("WARNING: NO SEARCH AS entityConfig.search.field not found");
                 }
             }
-            const fieldNames = entityConfig.fields.map(field => {
-                return field.name;
-            })
-            /** 
+
+            /**
             const fieldLikeNames = entityConfig.fields.filter(field => {
                 return field.multiple;
             }).map(field => field.name);
-            */
+             */
+            //console.log("FILTER", entityConfig.filter);
 
+            if (entityConfig.filter) {
+                Object.keys(req.query).map((key) => {
+                    //console.log("KEY", key)
+                    const filterConfig = entityConfig.filter.find(field => { return field.field === key });
+                    if (filterConfig) {
+                        const fieldEntityConfig = entityConfig.fields.find(field => { return field.name === key });
+                        //console.log("fieldEntityConfig ", fieldEntityConfig, key);
+                        if (fieldEntityConfig.multiple) {
+                            //console.log("fieldEntityConfig MULTIPLE ", key)
+                            const fkEntityConfig = DataAccessor.getEntityConfig(fieldEntityConfig.foreignKey);
+                            const intersection = fieldEntityConfig.intersection;
+                            queryObj.join = queryObj.join || [];
+                            queryObj.join.push([intersection.table, {
+                                [intersection.table + "." + intersection.primaryKey]: entityConfig.table + ".id"
+                            }])
+                            queryObj.filter = queryObj.filter || {};
+                            queryObj.filter[intersection.table + "." + intersection.foreignKey] = req.query[key];
+                        } else {
+                            queryObj.filter = queryObj.filter || {};
+                            queryObj.filter[entityConfig.table + "." + key] = req.query[key];
+                        }
+                    }
 
-            Object.keys(req.query).map((key) => {
+                });
+            }
+            //console.log("QUERY OBJ JOIN", queryObj.join);
 
-                if (fieldNames.indexOf(key) !== -1) {
-                    /**
-                if (fieldLikeNames.indexOf(key) !== -1) {
-                    //console.log("FIELD NAME LIKE",key,value);
-                    const value = req.query[key];
-                    console.log("FIELD NAME LIKE", key, value);
-                    const values = Array.isArray(value) ? value : [value];
-                    queryObj.filterLike = values.map((val) => {
-                        return [key, "LIKE", "%c" + val + "c%"];
-                    });
-                    console.log("SET QUERY OBJ", queryObj.filterLike);
-                } else {
-                 */
-                    queryObj.filter = queryObj.filter || {};
-                    queryObj.filter[key] = req.query[key];
-                    /**  }*/
-                }
-            });
             if (entityConfig.enablement && typeof req.query[entityConfig.enablement] !== 'undefined') {
                 queryObj.filter = queryObj.filter || {};
-                queryObj.filter[entityConfig.enablement] = parseInt(req.query[entityConfig.enablement])
+                queryObj.filter[entityConfig.table + "." + entityConfig.enablement] = parseInt(req.query[entityConfig.enablement])
             }
 
             const offset = parseInt(req.query.offset);
+
+            //console.log(queryObj);
+
             const dbQuery = DataAccessor.database.getEntities(entityConfig.table, queryObj);
             const total = await dbQuery.clone().count();
+            console.log("COUNT", dbQuery.clone().count().toSQL());
+            console.log("TOTAL", total);
             /**
              * must add offset condition AFTER getting total or else total returns empty array for nonzero offset
              */
             const dbObjects = await (offset > 0 ? dbQuery.offset(offset) : dbQuery);
-            const entities = dbObjects.map((dbObject) => {
+            //console.log("dbObjects", dbObjects);
+            let entities = dbObjects.map((dbObject) => {
                 return getEntityFromDatabaseObject(entityConfig, dbObject);
-            })
+            });
+            /**
+             * now need to join on multiple foreign keys
+             */
+            const entityIds = entities.map(entity => entity.id);
+            //console.log("ENTITY IDS", entityIds);
+            const multipleFKConfigs = entityConfig.fields.filter(config => config.multiple);
+            if (multipleFKConfigs.length > 0) {
+                const multipleFKMap = {};
+                for (i = 0, len = multipleFKConfigs.length; i < len; i++) {
+                    const multipleFKConfig = multipleFKConfigs[i];
+                    //console.log("multipleFKConfig", multipleFKConfig);
+                    const intersection = await DataAccessor.database.getIntersection(entityIds, multipleFKConfig.intersection);
+                    //console.log("intersection", intersection);
+                    intersection.map((entry) => {
+                        multipleFKMap[entry.pk] = multipleFKMap[entry.pk] || {};
+                        multipleFKMap[entry.pk][multipleFKConfig.name] = multipleFKMap[entry.pk][multipleFKConfig.name] || [];
+                        multipleFKMap[entry.pk][multipleFKConfig.name].push(entry.fk);
+
+                    }, {});
+                    //console.log("multipleFKMap", multipleFKMap);
+                };
+                entities = entities.map(entity => {
+                    //const entityId = entity.id;
+                    const multipleFKEntityMap = multipleFKMap[entity.id];
+                    //console.log("multipleFKEntityMap", entityId, multipleFKEntityMap);
+                    return Object.assign({}, entity, multipleFKEntityMap);
+                })
+            }
+
+
+
             queryObj.offset = offset;
             res.status(200).json({ query: queryObj, total: total[0]["count(*)"], returned: entities.length, entities: entities });
         } else {
@@ -214,16 +256,11 @@ const getEntityFromDatabaseObject = (entityConfig, object) => {
         const value = object[name];
 
         if (config.multiple) {
-            const amalgamateOn = config.amalgamateOn || "c";
-            const aLength = amalgamateOn.length;
-            try {
-                if (value[0] === amalgamateOn) {
-                    const array = value.substring(aLength, value.length - (aLength)).split(amalgamateOn)
-                    entity[name] = config.foreignKey ? array.map((v) => parseInt(v)) : array;
-                } else {
-                    entity[name] = [object[name]]
-                }
-            } catch (err) { }
+            const intersection_table = config.intersection_table;
+
+            /**
+             * 
+             */
         }
     });
 
