@@ -49,24 +49,21 @@ const database = class {
         return this.db(PING_TABLE);
     }
     getEntities(table, queryObj) {
-        console.log("DATABASE GET ENTITIES", queryObj);
+        //console.log("DATABASE GET ENTITIES", queryObj);
 
-        let dbQuery = this.db(table);
+        let dbQuery = this.db.select("*").from(table)
         let useAnd = false;
+
+        if (queryObj.join) {
+            queryObj.join.map(join => {
+                //console.log("JOIN", join);
+                dbQuery = dbQuery.join(join[0], join[1]);
+            })
+        }
 
         if (queryObj.filter) {
             dbQuery = dbQuery.where(queryObj.filter);
             useAnd = true;
-        }
-        if (queryObj.filterLike) {
-            queryObj.filterLike.forEach(filterLike => {
-                if (useAnd) {
-                    dbQuery = dbQuery.andWhere(...filterLike);
-                } else {
-                    dbQuery = dbQuery.where(...filterLike);
-                }
-                useAnd = true;
-            })
         }
 
         if (queryObj.search) {
@@ -79,7 +76,10 @@ const database = class {
         if (queryObj.limit) {
             dbQuery = dbQuery.limit(parseInt(queryObj.limit));
         }
-        console.log("SQL", dbQuery.toSQL());
+        //if (queryObj.join) {
+        //dbQuery = dbQuery.groupBy(table + '.id');
+        //}
+        //console.log("SQL 1", dbQuery.toSQL());
         return dbQuery;
     }
     updateEntity(table, id, update) {
@@ -90,6 +90,13 @@ const database = class {
             return Promise.resolve(0);
         }
         return this.db(table).insert(entities);
+    }
+    getIntersection(entityIds, intersection) {
+        const query = this.db(intersection.table)
+            .select(intersection.primaryKey + " AS pk", intersection.foreignKey + " AS fk")
+            .whereIn(intersection.primaryKey, entityIds);
+        //console.log(query.toSQL());
+        return query;
     }
     addScheduleItems(items) {
         const table = this.schema.schedule.table;
