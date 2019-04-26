@@ -39,7 +39,16 @@ const database = class {
         }
         return Knex({
             client: SQL_DB_PLATFORM,
-            connection: connection
+            connection: connection,
+            pool: {
+                min: 2,
+                max: 10,
+                afterCreate: function (conn, cb) {
+                    conn.query('SET sql_mode="";', function (err) {
+                        cb(err, conn);
+                    });
+                }
+            }
         });
     }
     insertPing(key) {
@@ -49,15 +58,21 @@ const database = class {
         return this.db(PING_TABLE);
     }
     getEntities(table, queryObj) {
-
-        //let dbQuery = this.db.select("*").from(table);
+        console.log("DataAccessor.getEntities", table, queryObj);
         let dbQuery = this.db(table);
+
         let useAnd = false;
 
         if (queryObj.join) {
             queryObj.join.map(join => {
                 dbQuery = dbQuery.join(join[0], join[1]);
             })
+        }
+        if (queryObj.filterIn) {
+            queryObj.filterIn.forEach((filterIn) => {
+                dbQuery = dbQuery.whereIn(...filterIn);
+            })
+            useAnd = true;
         }
 
         if (queryObj.filter) {
@@ -75,6 +90,7 @@ const database = class {
         if (queryObj.limit) {
             dbQuery = dbQuery.limit(parseInt(queryObj.limit));
         }
+        console.log("SQL", dbQuery.toSQL());
         return dbQuery;
     }
     updateEntity(table, id, update) {
@@ -86,10 +102,11 @@ const database = class {
         }
         return this.db(table).insert(entities);
     }
-    getIntersection(entityIds, intersection) {
+    getIntersection(entityIds, intersection, mode = 0) {
+        const args = mode === 0 ? { pk: intersection.primaryKey, fk: intersection.foreignKey } : { pk: intersection.foreignKey, fk: intersection.primaryKey }
         const query = this.db(intersection.table)
-            .select(intersection.primaryKey + " AS pk", intersection.foreignKey + " AS fk")
-            .whereIn(intersection.primaryKey, entityIds);
+            .select(args.pk + " AS pk", args.fk + " AS fk")
+            .whereIn(args.pk, entityIds);
         //console.log(query.toSQL());
         return query;
     }
