@@ -133,22 +133,15 @@ router.get('/entities/:plural',
                 }
             }
 
-            /**
-            const fieldLikeNames = entityConfig.fields.filter(field => {
-                return field.multiple;
-            }).map(field => field.name);
-             */
-            //console.log("FILTER", entityConfig.filter);
-
             if (entityConfig.filter) {
                 Object.keys(req.query).map((key) => {
-                    //console.log("KEY", key)
+
                     const filterConfig = entityConfig.filter.find(field => { return field.field === key });
                     if (filterConfig) {
                         const fieldEntityConfig = entityConfig.fields.find(field => { return field.name === key });
-                        //console.log("fieldEntityConfig ", fieldEntityConfig, key);
+
                         if (fieldEntityConfig.multiple) {
-                            //console.log("fieldEntityConfig MULTIPLE ", key)
+
                             const fkEntityConfig = DataAccessor.getEntityConfig(fieldEntityConfig.foreignKey);
                             const intersection = fieldEntityConfig.intersection;
                             queryObj.join = queryObj.join || [];
@@ -165,7 +158,7 @@ router.get('/entities/:plural',
 
                 });
             }
-            //console.log("QUERY OBJ JOIN", queryObj.join);
+
 
             if (entityConfig.enablement && typeof req.query[entityConfig.enablement] !== 'undefined') {
                 queryObj.filter = queryObj.filter || {};
@@ -173,9 +166,34 @@ router.get('/entities/:plural',
             }
 
             const offset = parseInt(req.query.offset);
-
-            //console.log(queryObj);
-
+            /**
+             * Had to use this method to get query to work with both inner join and count
+             * https://stackoverflow.com/questions/23921117/disable-only-full-group-by
+             * 
+             * Original query using this.db(table) in getEntities method in database object
+             * was returning the id not of the Questions entry but of QuestionCategories
+             * To fix this, used this.db.select("*").from(table)
+             * but this brought the error from ONLY_FULL_GROUP_BY
+             * Fixed this issue using groupBy('Questions.id') at end of query
+             * but this resulted in the count() operation (on cloned query) bringing back 1 for all queries
+             * which messed up the pagination in the frontend UI.
+             * 
+             * The only way to get around all this was to
+             * disable ONLY_FULL_GROUP_BY sql option
+             * which can be done both using /etc/my.cnf like this:
+             * 
+             * [mysqld]  
+             *  sql_mode = "STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION"
+             * 
+             * can check using mysql> SELECT (@@sql_mode); to make sure ONLY_FULL_GROUP_BY not present
+             * 
+             * edit: PROBLEM SOLVED!
+             * The whole issue was caused by the presence of the QuestionCategories.id field which was
+             * overriding the Questions.id field in in the result of the inner join query.
+             * This id field is not necessary in an intersection table. Deleting it solved the entire issue
+             * and query (both inner join and count) work now without tweaking the server options
+             * to removee ONLY_FULL_GROUP_BY
+             */
             const dbQuery = DataAccessor.database.getEntities(entityConfig.table, queryObj);
             const total = await dbQuery.clone().count();
             console.log("COUNT", dbQuery.clone().count().toSQL());
@@ -184,7 +202,6 @@ router.get('/entities/:plural',
              * must add offset condition AFTER getting total or else total returns empty array for nonzero offset
              */
             const dbObjects = await (offset > 0 ? dbQuery.offset(offset) : dbQuery);
-            //console.log("dbObjects", dbObjects);
             let entities = dbObjects.map((dbObject) => {
                 return getEntityFromDatabaseObject(entityConfig, dbObject);
             });
