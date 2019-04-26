@@ -24,6 +24,7 @@
                     "entity": "categories",
                     "field": "categories",
                     "label": "name",
+                    "multiple": true,
                     "all": true
                 }
             ],
