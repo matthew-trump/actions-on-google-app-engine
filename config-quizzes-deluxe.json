@@ -17,8 +17,9 @@
             "plural": "questions",
             "table": "Questions",
             "enablement": "status",
-            "add": true,
             "defaultEnabled": 1,
+            "add": true,
+            "type": "question",
             "filter": [
                 {
                     "entity": "categories",
@@ -37,6 +38,34 @@
                     "editable": true
                 },
                 {
+                    "name": "answer",
+                    "editable": true
+                },
+                {
+                    "name": "false_1",
+                    "editable": true
+                },
+                {
+                    "name": "false_2",
+                    "editable": true
+                },
+                {
+                    "name": "false_3",
+                    "editable": true
+                },
+                {
+                    "name": "false_4",
+                    "editable": true
+                },
+                {
+                    "name": "false_5",
+                    "editable": true
+                },
+                {
+                    "name": "false_6",
+                    "editable": true
+                },
+                {
                     "name": "categories",
                     "foreignKey": "categories",
                     "multiple": true,
@@ -48,8 +77,45 @@
                     "label": "name",
                     "none": "General",
                     "editable": true
+                },
+                {
+                    "name": "difficulty",
+                    "editable": true,
+                    "type": "number",
+                    "min": 1,
+                    "max": 100,
+                    "step": 1
+                },
+                {
+                    "name": "type",
+                    "editable": true,
+                    "type": "enum:questionType"
                 }
-            ]
+            ],
+            "enums": {
+                "questionType": [
+                    {
+                        "name": "std",
+                        "value": 1
+                    },
+                    {
+                        "name": "num",
+                        "value": 2
+                    },
+                    {
+                        "name": "ord",
+                        "value": 3
+                    },
+                    {
+                        "name": "alph",
+                        "value": 4
+                    },
+                    {
+                        "name": "t/f",
+                        "value": 4
+                    }
+                ]
+            }
         }
     ]
 }
