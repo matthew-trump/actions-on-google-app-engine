@@ -273,7 +273,7 @@ const accessor = class {
                 const name = field.name; //category
                 const entity = this.foreignKeyEntityCache[plural][id];
                 //the category
-                console.log("XYZ", name, entity, field)
+                //console.log("XYZ", name, entity, field)
                 round[name] = {
                     id: id,
                     name: entity ? entity[field.label] : field.none
@@ -286,48 +286,107 @@ const accessor = class {
     getEntityFromDatabaseObject(entityConfig, object) {
         return object;
     }
-    getEntityDatabaseObjectFromRequest(entityConfig, update) {
-        const obj = Object.assign({}, update);
+    getEntityDatabaseObjectFromRequest(entityConfig, update, deleteFields) {
+        const objRaw = Object.assign({}, update);
+        const obj = Object.keys(objRaw).reduce((o, name) => {
+            if (deleteFields.indexOf(name) === -1) {
+                o[name] = objRaw[name];
+            }
+            return o;
+        }, {});
         if (entityConfig.search && entityConfig.search.compose) {
             obj[entityConfig.search.field] = entityConfig.search.compose.map((field => {
                 return update[field]
             })).join(entityConfig.search.separator);
         }
-        entityConfig.fields.map((config) => {
-            const name = config.name;
-
-            if (config.multiple && Array.isArray(update[name])) {
-
-                if (update[name].length > 0) {
-                    const amalgamateOn = config.amalgamateOn || "c";
-                    obj[name] = amalgamateOn + (update[name]).join(amalgamateOn) + amalgamateOn;
-                } else {
-                    obj[name] = null;
-                }
-            }
-
-        })
         return obj;
     }
     async addEntities(plural, entities) {
         return new Promise(async (resolve, reject) => {
             let entityConfig = this.getEntityConfig(plural);
             if (entityConfig) {
-                const dbObjects = entities.map((entity) => {
-                    return this.getEntityDatabaseObjectFromRequest(entityConfig, entity);
-                });
-                const result = await this.database.addEntities(entityConfig.table, dbObjects);
-                resolve({ result: result })
+                const ids = [];
+                for (let j = 0, len = entities.length; j < len; j++) {
+                    const update = entities[j];
+                    const { deleteFields, addenda } = await this.getIntersectionUpdates(entityConfig, null, update);
+                    //console.log("getIntersectionUpdates", deleteFields, addenda);
+                    const dbObject = this.getEntityDatabaseObjectFromRequest(entityConfig, update, deleteFields)
+                    //console.log("dbObjects", dbObjects);
+                    const result = await this.database.addEntities(entityConfig.table, [dbObject]);
+                    //console.log("result", result);
+                    ids.push(result[0]);
+                    await this.updateIntersections(entityConfig, result[0], deleteFields, addenda, {});
+                }
+                resolve({ result: ids })
             } else {
-                reject({ error: { message: "Entity " + plural + " not found." } })
+                reject({
+                    error: { message: "Entity " + plural + " not found." }
+                })
             }
         })
     }
+
+
+
+    async getIntersectionUpdates(entityConfig, id, update) {
+        const deleteFields = [];
+        const addenda = {};
+        const delenda = {};
+        const multipleFKConfigs = entityConfig.fields.filter(field => {
+            return field.foreignKey && field.multiple;
+        })
+        for (let i = 0, len = multipleFKConfigs.length; i < len; i++) {
+            const multipleFKConfig = multipleFKConfigs[i];
+            const multipleFKname = multipleFKConfig.name;
+            deleteFields.push(multipleFKname);
+            const intersection = multipleFKConfig.intersection;
+            if (intersection) {
+                if (id) {
+                    const currentRows = await this.database.getIntersection([id], intersection, 0);
+                    const current = currentRows.map(row => row.fk);
+                    if (current && update[multipleFKname]) {
+                        addenda[multipleFKname] = update[multipleFKname].filter(item => {
+                            return current.indexOf(item) === -1;
+                        })
+                        delenda[multipleFKname] = current.filter(item => {
+                            return update[multipleFKname].indexOf(item) === -1;
+                        })
+                    }
+
+                } else {
+                    addenda[multipleFKname] = update[multipleFKname];
+                    delenda[multipleFKname] = [];
+                }
+
+
+            }
+        }
+        return { deleteFields, addenda, delenda };
+    }
+    async updateIntersections(entityConfig, id, fields, addenda, delenda) {
+        for (let i = 0, len = fields.length; i < len; i++) {
+            const fieldName = fields[i];
+
+            const intersection = entityConfig.fields.find(field => field.name === fieldName).intersection;
+            const fieldAddenda = addenda[fieldName];
+            const fieldDelenda = delenda[fieldName];
+            if (fieldAddenda && fieldAddenda.length > 0) {
+                await this.database.addIntersectionItems(id, fieldAddenda, intersection);
+            }
+            if (fieldDelenda && fieldDelenda.length > 0) {
+                await this.database.deleteIntersectionItems(id, fieldDelenda, intersection);
+            }
+        }
+    }
     async updateEntity(plural, id, update) {
         return new Promise(async (resolve, reject) => {
+
             let entityConfig = this.getEntityConfig(plural);
             if (entityConfig) {
-                const updateObj = this.getEntityDatabaseObjectFromRequest(entityConfig, update);
+                const { deleteFields, addenda, delenda } = await this.getIntersectionUpdates(entityConfig, id, update);
+                await this.updateIntersections(entityConfig, id, deleteFields, addenda, delenda);
+
+                const updateObj = this.getEntityDatabaseObjectFromRequest(entityConfig, update, deleteFields);
                 this.database.updateEntity(entityConfig.table, id, updateObj
                 ).then(
                     _ => {
@@ -343,7 +402,7 @@ const accessor = class {
         })
     }
     async getEntities(plural, query) {
-        console.log("GET ENTITIES", plural, query);
+        //console.log("GET ENTITIES", plural, query);
         return new Promise(async (resolve, reject) => {
             let entityConfig = this.getEntityConfig(plural);
             if (entityConfig) {
@@ -406,7 +465,7 @@ const accessor = class {
                                         //console.log("KEYS", keyArray);
                                         //console.log("INTERSECTION SET", intersectionSet);
 
-                                        console.log("QUERY OBJ", queryObj);
+                                        //console.log("QUERY OBJ", queryObj);
                                     }
                                 }
 
@@ -458,7 +517,7 @@ const accessor = class {
                 const dbQuery = this.database.getEntities(entityConfig.table, queryObj);
                 const total = await dbQuery.clone().count();
 
-                console.log("TOTAL", total);
+                //console.log("TOTAL", total);
                 const groupBy = true;
                 /**
                  * must add offset condition AFTER getting total or else total returns empty array for nonzero offset
