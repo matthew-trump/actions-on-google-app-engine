@@ -58,7 +58,7 @@ const database = class {
         return this.db(PING_TABLE);
     }
     getEntities(table, queryObj) {
-        console.log("DataAccessor.getEntities", table, queryObj);
+        //console.log("DataAccessor.getEntities", table, queryObj);
         let dbQuery = this.db(table);
 
         let useAnd = false;
@@ -90,7 +90,7 @@ const database = class {
         if (queryObj.limit) {
             dbQuery = dbQuery.limit(parseInt(queryObj.limit));
         }
-        console.log("SQL", dbQuery.toSQL());
+        //console.log("SQL", dbQuery.toSQL());
         return dbQuery;
     }
     updateEntity(table, id, update) {
@@ -109,6 +109,20 @@ const database = class {
             .whereIn(args.pk, entityIds);
         //console.log(query.toSQL());
         return query;
+    }
+    addIntersectionItems(entityId, foreignKeyIds, intersection) {
+        return this.db(intersection.table)
+            .insert(foreignKeyIds.map(fk => {
+                return {
+                    [intersection.primaryKey]: entityId,
+                    [intersection.foreignKey]: fk
+                }
+            }));
+    }
+    deleteIntersectionItems(entityId, foreignKeyIds, intersection) {
+        return this.db(intersection.table)
+            .where({ [intersection.primaryKey]: entityId })
+            .whereIn(intersection.foreignKey, foreignKeyIds).del();
     }
     addScheduleItems(items) {
         const table = this.schema.schedule.table;
