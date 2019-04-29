@@ -447,25 +447,18 @@ const accessor = class {
                                         }
                                     } else if (mode === 1) {
                                         const iresults = await this.database.getIntersection(keyArray, intersection, 1);
-                                        //console.log("IRESULTS", iresults);
                                         const iresultsMap = iresults.reduce((obj, iresult) => {
-                                            //console.log("REDUCE", obj, iresult);
                                             const pk = iresult.pk;
                                             obj[pk] = obj[pk] || [];
                                             obj[pk].push(iresult.fk);
                                             return obj;
                                         }, {});
-                                        //console.log("IRESULTS MAP", iresultsMap);
                                         const intersectionSet = Object.keys(iresultsMap).reduce((array, key, index) => {
                                             return index === 0 ? iresultsMap[key]
                                                 : array.filter(e => iresultsMap[key].indexOf(e) !== -1);
                                         }, []);
                                         queryObj.filterIn = queryObj.filterIn || [];
                                         queryObj.filterIn.push(["id", intersectionSet]);
-                                        //console.log("KEYS", keyArray);
-                                        //console.log("INTERSECTION SET", intersectionSet);
-
-                                        //console.log("QUERY OBJ", queryObj);
                                     }
                                 }
 
@@ -517,7 +510,6 @@ const accessor = class {
                 const dbQuery = this.database.getEntities(entityConfig.table, queryObj);
                 const total = await dbQuery.clone().count();
 
-                //console.log("TOTAL", total);
                 const groupBy = true;
                 /**
                  * must add offset condition AFTER getting total or else total returns empty array for nonzero offset
@@ -553,6 +545,59 @@ const accessor = class {
                         return Object.assign({}, entity, multipleFKEntityMap);
                     })
                 }
+
+                const joinForeignKeyFields = entityConfig.fields.filter(config => config.foreignKeyOf);
+
+                for (let k = 0, len = joinForeignKeyFields.length; k < len; k++) {
+
+                    const joinForeignKeyField = joinForeignKeyFields[k];
+                    const fieldName = joinForeignKeyField.name; //e.g. author
+                    const fieldNameEntity = joinForeignKeyField.foreignKey; //e.g authors
+                    const foreignKeyOf = joinForeignKeyField.foreignKeyOf; //e.g. work
+                    const foreignKeyField = entityConfig.fields.find(field => field.name === foreignKeyOf); //work field of quotes Entity
+
+                    const foreignKeyOfEntityConfig = this.getEntityConfig(foreignKeyField.foreignKey); //Works entity
+                    const fieldEntityConfig = this.getEntityConfig(fieldNameEntity); //Authors entity;
+
+                    const foreignKeyIds = [];
+                    entities.forEach(entity => {
+                        const fk = entity[foreignKeyOf];
+                        if (Array.isArray(fk)) {
+                            foreignKeyIds.concat(fk);
+                        } else {
+                            foreignKeyIds.push(fk);
+                        }
+                    })
+
+                    //console.log("fieldName (author?)", fieldName);
+                    //console.log("fieldNameEntity (authors?)", fieldNameEntity);
+                    //console.log("foreignKeyOf (work?)", foreignKeyOf);
+                    //console.log("foreignKeyField (work field obj)", foreignKeyField);
+                    //console.log("foreignKeyOfEntityConfig (works entity)", foreignKeyOfEntityConfig);
+                    //console.log("foreignKeyOfEntityConfig.table (Works)", foreignKeyOfEntityConfig.table);
+                    //console.log("fieldEntityConfig (authors entity)", fieldEntityConfig);
+                    //console.log("fieldEntityConfig.table (Authors)", fieldEntityConfig.table);
+                    //console.log("foreignKeyIds (array of work ids [1,9,7])", foreignKeyIds.filter(Boolean));
+
+                    const fkJoinResult = await this.database.getForeignKeyJoinMapping(joinForeignKeyField, foreignKeyOfEntityConfig, fieldEntityConfig, foreignKeyIds.filter(Boolean));
+                    console.log("FK mapping", fkJoinResult);
+
+                    const fkMapping = fkJoinResult.reduce((obj, row) => {
+                        const valLeft = row[foreignKeyOf];
+                        const valRight = row[fieldName];
+                        obj[valLeft] = valRight;
+                        return obj;
+                    }, {});
+                    console.log("FK mapping", fkMapping);
+
+                    entities.map(entity => {
+                        entity[fieldName] = fkMapping['' + entity[foreignKeyOf]];
+                    })
+
+
+                }
+
+
                 queryObj.offset = offset;
                 resolve({ query: queryObj, total: total[0]["count(*)"], returned: entities.length, entities: entities })
             } else {
