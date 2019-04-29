@@ -90,7 +90,6 @@ const database = class {
         if (queryObj.limit) {
             dbQuery = dbQuery.limit(parseInt(queryObj.limit));
         }
-        //console.log("SQL", dbQuery.toSQL());
         return dbQuery;
     }
     updateEntity(table, id, update) {
@@ -102,12 +101,24 @@ const database = class {
         }
         return this.db(table).insert(entities);
     }
+    getForeignKeyJoinMapping(joinForeignKeyField, fromEntity, toEntity, ids) {
+        const query = this.db(fromEntity.table)
+            .select(
+                fromEntity.table + ".id as " + joinForeignKeyField.foreignKeyOf,
+                toEntity.table + ".id as " + joinForeignKeyField.name)
+            .join(toEntity.table, { [fromEntity.table + "." + joinForeignKeyField.name]: toEntity.table + ".id" })
+            .whereIn(fromEntity.table + ".id", ids);
+
+        //console.log(query.toSQL());
+        return query;
+
+
+    }
     getIntersection(entityIds, intersection, mode = 0) {
         const args = mode === 0 ? { pk: intersection.primaryKey, fk: intersection.foreignKey } : { pk: intersection.foreignKey, fk: intersection.primaryKey }
         const query = this.db(intersection.table)
             .select(args.pk + " AS pk", args.fk + " AS fk")
             .whereIn(args.pk, entityIds);
-        //console.log(query.toSQL());
         return query;
     }
     addIntersectionItems(entityId, foreignKeyIds, intersection) {
