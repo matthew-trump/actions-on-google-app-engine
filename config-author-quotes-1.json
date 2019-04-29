@@ -1,0 +1,68 @@
+{
+    "entities": [
+        {
+            "name": "author",
+            "plural": "authors",
+            "table": "Authors",
+            "add": true,
+            "search": {
+                "field": "name"
+            },
+            "fields": [
+                {
+                    "name": "name",
+                    "required": true,
+                    "editable": true
+                }
+            ]
+        },
+        {
+            "name": "work",
+            "plural": "works",
+            "table": "Works",
+            "type": "literary-work",
+            "add": true,
+            "fields": [
+                {
+                    "name": "title",
+                    "required": true,
+                    "editable": true
+                },
+                {
+                    "name": "author",
+                    "editable": true,
+                    "foreignKey": "authors",
+                    "input": "text autocomplete",
+                    "label": "name"
+                }
+            ]
+        },
+        {
+            "name": "quote",
+            "plural": "quotes",
+            "table": "Quotes",
+            "type": "literary-quote",
+            "add": true,
+            "fields": [
+                {
+                    "name": "text",
+                    "required": true,
+                    "editable": true
+                },
+                {
+                    "name": "work",
+                    "editable": true,
+                    "foreignKey": "works",
+                    "label": "title"
+                },
+                {
+                    "name": "author",
+                    "editable": false,
+                    "foreignKey": "authors",
+                    "foreignKeyOf": "work",
+                    "label": "title"
+                }
+            ]
+        }
+    ]
+}
