@@ -310,7 +310,11 @@ const accessor = class {
                     const update = entities[j];
                     const { deleteFields, addenda } = await this.getIntersectionUpdates(entityConfig, null, update);
                     //console.log("getIntersectionUpdates", deleteFields, addenda);
-                    const dbObject = this.getEntityDatabaseObjectFromRequest(entityConfig, update, deleteFields)
+
+                    const foreignKeysOf = entityConfig.fields.filter(field => field.foreignKeyOf).map(field => field.name);
+                    console.log("FOREIGN KEYS OF", foreignKeysOf);
+
+                    const dbObject = this.getEntityDatabaseObjectFromRequest(entityConfig, update, deleteFields.concat(foreignKeysOf))
                     //console.log("dbObjects", dbObjects);
                     const result = await this.database.addEntities(entityConfig.table, [dbObject]);
                     //console.log("result", result);
@@ -385,8 +389,9 @@ const accessor = class {
             if (entityConfig) {
                 const { deleteFields, addenda, delenda } = await this.getIntersectionUpdates(entityConfig, id, update);
                 await this.updateIntersections(entityConfig, id, deleteFields, addenda, delenda);
-
-                const updateObj = this.getEntityDatabaseObjectFromRequest(entityConfig, update, deleteFields);
+                const foreignKeysOf = entityConfig.fields.filter(field => field.foreignKeyOf).map(field => field.name);
+                console.log("FOREIGN KEYS OF", foreignKeysOf);
+                const updateObj = this.getEntityDatabaseObjectFromRequest(entityConfig, update, deleteFields.concat(foreignKeysOf));
                 this.database.updateEntity(entityConfig.table, id, updateObj
                 ).then(
                     _ => {
