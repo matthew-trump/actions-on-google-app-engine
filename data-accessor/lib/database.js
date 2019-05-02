@@ -101,7 +101,23 @@ const database = class {
         }
         return this.db(table).insert(entities);
     }
+    getForeignKeyIntersectionJoinMapping(joinForeignKeyField, fromEntity, intersection, ids) {
+        const query = this.db(fromEntity.table)
+            .select(
+                fromEntity.table + ".id as " + joinForeignKeyField.foreignKeyOf,
+                intersection.table + "." + intersection.foreignKey + " as " + joinForeignKeyField.name)
+            .join(intersection.table, { [fromEntity.table + ".id"]: intersection.table + "." + intersection.primaryKey })
+            .whereIn(fromEntity.table + ".id", ids);
+
+        //console.log(query.toSQL());
+        return query;
+    }
     getForeignKeyJoinMapping(joinForeignKeyField, fromEntity, toEntity, ids) {
+        console.log("joinForeignKeyField", joinForeignKeyField);
+        console.log("fromEntity", fromEntity);
+        console.log("toEntity", toEntity);
+        console.log("ids", ids);
+
         const query = this.db(fromEntity.table)
             .select(
                 fromEntity.table + ".id as " + joinForeignKeyField.foreignKeyOf,
@@ -111,8 +127,6 @@ const database = class {
 
         //console.log(query.toSQL());
         return query;
-
-
     }
     getIntersection(entityIds, intersection, mode = 0) {
         const args = mode === 0 ? { pk: intersection.primaryKey, fk: intersection.foreignKey } : { pk: intersection.foreignKey, fk: intersection.primaryKey }
