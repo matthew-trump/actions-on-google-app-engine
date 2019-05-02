@@ -350,7 +350,7 @@ const accessor = class {
                     const current = currentRows.map(row => row.fk);
                     if (current && update[multipleFKname]) {
                         addenda[multipleFKname] = update[multipleFKname].filter(item => {
-                            return current.indexOf(item) === -1;
+                            return current.indexOf(item) === -1 && item > 0;
                         })
                         delenda[multipleFKname] = current.filter(item => {
                             return update[multipleFKname].indexOf(item) === -1;
@@ -563,6 +563,7 @@ const accessor = class {
 
                     const foreignKeyOfEntityConfig = this.getEntityConfig(foreignKeyField.foreignKey); //Works entity
                     const fieldEntityConfig = this.getEntityConfig(fieldNameEntity); //Authors entity;
+                    const foreignKeyCrossFieldConfig = foreignKeyOfEntityConfig.fields.find(field => field.name === fieldName);
 
                     const foreignKeyIds = [];
                     entities.forEach(entity => {
@@ -573,31 +574,54 @@ const accessor = class {
                             foreignKeyIds.push(fk);
                         }
                     })
+                    //console.log("joinForeignKeyField", joinForeignKeyField);
+                    //console.log("foreignKeyField", foreignKeyField);
+                    //console.log("foreignKeyOfEntityConfig", foreignKeyOfEntityConfig);
+                    //console.log("foreignKeyCrossFieldConfig", foreignKeyCrossFieldConfig);
 
-                    //console.log("fieldName (author?)", fieldName);
-                    //console.log("fieldNameEntity (authors?)", fieldNameEntity);
-                    //console.log("foreignKeyOf (work?)", foreignKeyOf);
-                    //console.log("foreignKeyField (work field obj)", foreignKeyField);
-                    //console.log("foreignKeyOfEntityConfig (works entity)", foreignKeyOfEntityConfig);
-                    //console.log("foreignKeyOfEntityConfig.table (Works)", foreignKeyOfEntityConfig.table);
-                    //console.log("fieldEntityConfig (authors entity)", fieldEntityConfig);
-                    //console.log("fieldEntityConfig.table (Authors)", fieldEntityConfig.table);
-                    //console.log("foreignKeyIds (array of work ids [1,9,7])", foreignKeyIds.filter(Boolean));
+                    const intersection = foreignKeyCrossFieldConfig ? foreignKeyCrossFieldConfig.intersection : null;
+                    //FOR TESTING DISABLE THIS FOR NOW
 
-                    const fkJoinResult = await this.database.getForeignKeyJoinMapping(joinForeignKeyField, foreignKeyOfEntityConfig, fieldEntityConfig, foreignKeyIds.filter(Boolean));
-                    console.log("FK mapping", fkJoinResult);
+                    if (!intersection) {
+                        const fkJoinResult = await this.database.getForeignKeyJoinMapping(joinForeignKeyField, foreignKeyOfEntityConfig, fieldEntityConfig, foreignKeyIds.filter(Boolean));
 
-                    const fkMapping = fkJoinResult.reduce((obj, row) => {
-                        const valLeft = row[foreignKeyOf];
-                        const valRight = row[fieldName];
-                        obj[valLeft] = valRight;
-                        return obj;
-                    }, {});
-                    console.log("FK mapping", fkMapping);
 
-                    entities.map(entity => {
-                        entity[fieldName] = fkMapping['' + entity[foreignKeyOf]];
-                    })
+                        const fkMapping = fkJoinResult.reduce((obj, row) => {
+                            const valLeft = row[foreignKeyOf];
+                            const valRight = row[fieldName];
+                            obj[valLeft] = valRight;
+                            return obj;
+                        }, {});
+
+
+                        entities.map(entity => {
+                            entity[fieldName] = fkMapping['' + entity[foreignKeyOf]];
+                        })
+
+                    } else {
+                        //console.log("INTERSECTION", intersection);
+
+                        const fkJoinResult = await this.database
+                            .getForeignKeyIntersectionJoinMapping(joinForeignKeyField,
+                                foreignKeyOfEntityConfig, intersection, foreignKeyIds.filter(Boolean));
+
+                        //console.log("fkJoinResult", fkJoinResult);
+
+                        const fkMapping = fkJoinResult.reduce((obj, row) => {
+                            const valLeft = row[foreignKeyOf];
+                            const valRight = row[fieldName];
+                            obj[valLeft] = obj[valLeft] || [];
+                            obj[valLeft].push(valRight);
+                            return obj;
+                        }, {});
+                        //console.log("fkMapping", fkMapping);
+                        entities.map(entity => {
+                            entity[fieldName] = fkMapping['' + entity[foreignKeyOf]];
+                        })
+
+
+                    }
+
 
 
                 }
