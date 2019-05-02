@@ -32,7 +32,15 @@
                     "name": "author",
                     "editable": true,
                     "foreignKey": "authors",
-                    "input": "text autocomplete",
+                    "multiple": true,
+                    "intersection": {
+                        "table": "AuthorWorks",
+                        "primaryKey": "work_id",
+                        "foreignKey": "author_id",
+                        "additional": [
+                            "relationship"
+                        ]
+                    },
                     "label": "name"
                 }
             ]
