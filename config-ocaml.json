@@ -1,0 +1,60 @@
+{
+    "entities": [
+        {
+            "name": "category",
+            "plural": "categories",
+            "table": "Categories",
+            "add": true,
+            "fields": [
+                {
+                    "name": "name",
+                    "editable": true
+                }
+            ]
+        },
+        {
+            "name": "sample",
+            "plural": "samples",
+            "table": "Samples",
+            "enablement": "status",
+            "defaultEnabled": 1,
+            "add": true,
+            "type": "code",
+            "filter": [
+                {
+                    "entity": "categories",
+                    "field": "categories",
+                    "label": "name",
+                    "multiple": true,
+                    "all": true
+                }
+            ],
+            "search": {
+                "field": "input"
+            },
+            "fields": [
+                {
+                    "name": "input",
+                    "editable": true
+                },
+                {
+                    "name": "output",
+                    "editable": true
+                },
+                {
+                    "name": "categories",
+                    "foreignKey": "categories",
+                    "multiple": true,
+                    "intersection": {
+                        "table": "SampleCategories",
+                        "primaryKey": "sample_id",
+                        "foreignKey": "category_id"
+                    },
+                    "label": "name",
+                    "none": "General",
+                    "editable": true
+                }
+            ]
+        }
+    ]
+}
