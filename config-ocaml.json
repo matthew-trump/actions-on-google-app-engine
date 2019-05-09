@@ -19,7 +19,7 @@
             "enablement": "status",
             "defaultEnabled": 1,
             "add": true,
-            "type": "code",
+            "type": "code-sample",
             "filter": [
                 {
                     "entity": "categories",
