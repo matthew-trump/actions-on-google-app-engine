@@ -165,10 +165,14 @@ const accessor = class {
         if (pObj.foreignKeys) {
             const keys = Object.keys(pObj.foreignKeys);
             for (let i = 0, len = keys.length; i < len; i++) {
-                const plural = keys[i];
-                const eConfig = this.getEntityConfig(plural);
-                const name = eConfig.name;
 
+                const plural = keys[i];
+                const filter = config.filter.find(f => plural === f.entity);
+                //console.log("FILTER", filter);
+                const name = filter.field
+
+
+                //console.log("POBJ FK", pObj.foreignKeys);
                 if (pObj.foreignKeys[plural]) {
                     query.filter = query.filter || {};
                     query.filter[name] = pObj.foreignKeys[plural];
@@ -178,9 +182,10 @@ const accessor = class {
         if (pObj.pool) {
             query.limit = pObj.pool
         }
-        const entities = await this.database.getEntities(config.table, query);
-
-        entities.map(entity => {
+        //console.log("QUERY", query);
+        const result = await this.getEntities(config.plural, query);
+        //console.log("ENTITIES", result.entities);
+        result.entities.map(entity => {
             if (options.forceReload || !map[entity.id]) {
                 map[entity.id] = {
                     item: Object.assign({}, entity),
@@ -192,7 +197,7 @@ const accessor = class {
         })
 
 
-        this.poolEntryCache[pObj.key] = entities.reduce((obj, entity) => {
+        this.poolEntryCache[pObj.key] = result.entities.reduce((obj, entity) => {
             obj.ids.push(entity.id);
             return obj;
         }, {
@@ -407,7 +412,7 @@ const accessor = class {
         })
     }
     async getEntities(plural, query) {
-        //console.log("GET ENTITIES", plural, query);
+        console.log("GET ENTITIES", plural, query);
         return new Promise(async (resolve, reject) => {
             let entityConfig = this.getEntityConfig(plural);
             if (entityConfig) {
