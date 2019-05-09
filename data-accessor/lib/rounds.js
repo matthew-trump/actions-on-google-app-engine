@@ -38,6 +38,7 @@ const rounds = class {
                     pool: conv.data.round.load.options.pool || DataAccessor.getScheduleFieldConfig('pool').default
                 });
 
+
             key = DataAccessor.getScheduleKey(loadOptions);
             delete conv.data.round.load;
 
