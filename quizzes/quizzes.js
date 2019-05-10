@@ -1,5 +1,9 @@
 const { Rounds } = require('../data-accessor');
-const shuffleArray = require('shuffle-array');
+const { Question, QUESTION_TYPES } = require('./question');
+
+
+const QUESTION_TYPE = process.env.QUESTION_TYPE;
+
 class Quizzes {
 
     constructor() { }
@@ -23,15 +27,13 @@ class Quizzes {
     }
     async getQuestion(conv, options) {
         const item = await Rounds.getItem(conv, options);
-        const question = this.parseQuestion(item);
-        //console.log("GET QUESTION shuffle", options.questionIndex, options.shuffle);
+        const question = Question.getQuestion(item, QUESTION_TYPE);
+
         if (options.shuffle) {
-            //console.log("SHUFFLE ARRAY", shuffleArray([0, 1, 2]));
-            question.answers = shuffleArray(question.answers);
+            question.answers = question.getShuffledAnswers();
             const indices = question.answers.map(a => a.index);
 
             conv.data.round.indices = indices;
-            //console.log("INDICES SET", conv.data.round.indices);
 
         } else if (options.keepLastOrder && conv.data.round.indices) {
             question.answers = conv.data.round.indices.map((index) => {
@@ -41,7 +43,6 @@ class Quizzes {
         return question;
     }
     setLatest(conv, latest) {
-        console.log("LATEST", latest);
         Rounds.setLatest(conv, latest);
         console.log("conv.data.round.latest", conv.data.round.latest);
     }
@@ -56,58 +57,7 @@ class Quizzes {
     numQuestions(conv) {
         return conv.data.round.items.length;
     }
-    parseSynonyms(synonyms) {
 
-        if (!synonyms) {
-            return [];
-        }
-        return synonyms.split(":").map(s => {
-            return { text: s }
-        })
-    }
-    parseQuestion(q) {
-        let total_responses = q.answer_correct_responses
-            + q.answer_incorrect_1_responses
-            + q.answer_incorrect_2_responses;
-        let percentage_correct = total_responses != 0 ? (q.answer_correct_responses / total_responses) : 0.0;
-        return {
-            id: q.id,
-            text: q.text,
-            category: q.category,
-            status: q.status,
-            order: q.order,
-
-            type: q.type,
-            source: q.source,
-            datetime: q.datetime,
-
-            answers: [
-                {
-                    index: 0,
-                    isCorrect: true,
-                    text: q.answer_correct,
-                    responses: q.answer_correct_responses,
-                    synonyms: this.parseSynonyms(q.answer_correct_synonyms)
-                },
-                {
-                    index: 1,
-                    isCorrect: false,
-                    text: q.answer_incorrect_1,
-                    responses: q.answer_incorrect_1_responses,
-                    synonyms: this.parseSynonyms(q.answer_incorrect_1_synonyms)
-                },
-                {
-                    index: 2,
-                    isCorrect: false,
-                    text: q.answer_incorrect_2,
-                    responses: q.answer_incorrect_2_responses,
-                    synonyms: this.parseSynonyms(q.answer_incorrect_2_synonyms)
-                }
-            ],
-            total_responses: total_responses,
-            percentage_correct: percentage_correct
-        }
-    }
 
 
 }
