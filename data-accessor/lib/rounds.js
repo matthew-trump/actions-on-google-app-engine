@@ -53,18 +53,13 @@ const rounds = class {
         const pObj = DataAccessor.scheduleItemCache[key];
 
         if (pObj) {
-            const selected = DataAccessor.selectPoolEntries(pObj, excluded);
-            conv.data.round = DataAccessor.generateRound(pObj, selected);
-            conv.data.round.key = key;
 
-            const items = selected.map((id) => {
-                return DataAccessor.entityCacheMap[pObj.entity]["" + id + ""]
-            }).map((obj) => {
-                return this.getItemFromEntity(pObj, obj);
-            });
+            conv.data.round = DataAccessor.generateRound(pObj, excluded);
+            //conv.data.round.key = key;
             //return all of the items here, up front
-            conv.data.round.items = items.map(item => item.id);
-            return Promise.resolve(items);
+            //conv.data.round.items = ordered;//items.map(item => item.id);
+
+            return Promise.resolve(conv.data.round.items);
         } else {
             //bad key: unable to parse load options from key
             console.log("ERROR BAD KEY", key);
@@ -72,34 +67,19 @@ const rounds = class {
         }
 
     }
-    getItemFromEntity(pObj, entity) {
-        const item = Object.assign({}, entity.item);
-        Object.keys(pObj.foreignKeys).map(plural => {
 
-            const fkEntityConfig = DataAccessor.getEntityConfig(plural);
 
-            const value = item[fkEntityConfig.name];
-
-            const fkObj = {
-                id: value,
-                name: DataAccessor.foreignKeyEntityCache[plural][value].name
-            }
-            item[fkEntityConfig.name] = fkObj;
-
-        })
-        return item;
-    }
     async getItem(conv, options = {}) {
         const index = typeof options.index !== 'undefined' ? options.index : conv.data.round.index;
 
         const id = conv.data.round.items[index];
-        const pObj = DataAccessor.scheduleItemCache[conv.data.round.key];
+        let pObj = DataAccessor.scheduleItemCache[conv.data.round.key];
         let entity = DataAccessor.entityCacheMap[pObj.entity][id];
 
         if (!entity) {
             //might occur in edge case of load distributed schedule rollover
             //scheduleItemCache should have been instantiated at initial startup
-            let pObj = DataAccessor.scheduleItemCache[conv.data.round.key];
+            pObj = DataAccessor.scheduleItemCache[conv.data.round.key];
             await DataAccessor.loadPoolEntities(pObj, {});
             entity = DataAccessor.entityCacheMap[pObj.entity][id];
             if (!entity) {
@@ -108,7 +88,8 @@ const rounds = class {
                 return {};
             }
         }
-        return this.getItemFromEntity(pObj, entity);
+        console.log("ENTITY 1", entity);
+        return DataAccessor.getItemFromEntity(pObj, entity);
     }
     async recordResponse(conv, data = {}) {
         if (!conv.data.round.shown) {
