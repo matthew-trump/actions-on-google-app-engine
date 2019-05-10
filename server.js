@@ -20,10 +20,10 @@ app.use("/ping", ping);
 app.use("/quizzes/dialogflow",
     secretKeyAuthorization,
     quizzesDialogflow);
-
+/** 
 app.use("/quizzes/ttsweb",
     quizzesTtsWeb);
-
+*/
 app.use("/login", jwtLogin);
 app.use("/api",
     jwtAuthorization,
@@ -34,7 +34,7 @@ const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => {
     console.log("");
-    console.log("DIALOGFLOW FULFILLMENT APP ENGINE");
+    console.log("ACTIONS ON GOOGLE APP ENGINE");
     console.log(`listening on port ${PORT}`);
     console.log("ENVIRONMENT", process.env.ENVIRONMENT);
 
