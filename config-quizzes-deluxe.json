@@ -5,8 +5,8 @@
         "number": "numquestions",
         "pool": "pool_size",
         "start": "start",
-        "ordering": null,
-        "direction": null,
+        "ordering": "difficulty",
+        "direction": -1,
         "defaultStartOffsetMinutes": 10,
         "fields": [
             {
