@@ -159,7 +159,7 @@ const accessor = class {
         const entity = this.getSchema().schedule.entity;
         this.entityCacheMap[entity] = this.entityCacheMap[entity] || {};
         const map = this.entityCacheMap[entity];
-        console.log("LOADING POOL ENTITIES INTO CACHE", entity, pObj.key);
+        console.log("LOADING POOL ENTITIES INTO CACHE", entity, pObj, pObj.key);
         const config = this.getEntityConfig(entity);
         const query = {};
         if (pObj.foreignKeys) {
@@ -183,7 +183,7 @@ const accessor = class {
             query.limit = pObj.pool
         }
         //console.log("QUERY", query);
-        const result = await this.getEntities(config.plural, query);
+        const result = await this.getEntities(config.plural, Object.assign({}, query.filter, { limit: query.limit }));
         //console.log("ENTITIES", result.entities);
         result.entities.map(entity => {
             if (options.forceReload || !map[entity.id]) {
@@ -212,7 +212,7 @@ const accessor = class {
     }
 
 
-    selectPoolEntries(pObj, excluded) {
+    selectEntriesFromPool(pObj, excluded) {
 
         const map = this.entityCacheMap[this.getSchema().schedule.entity];
 
@@ -244,11 +244,19 @@ const accessor = class {
             return indices.has(i);
         });
 
+
+        return selected;
+    }
+
+    sortItemsByOrderingField(items) {
+        const sortedItems = items.slice(0);
         const orderingField = SCHEMA.schedule.ordering;
+        //console.log("ORDERING", orderingField);
         if (orderingField) {
             const orderingDirection = SCHEMA.schedule.direction;
-            selected.sort((qa, qb) => {
-                if (qa[forderingField] > qb[orderingField])
+            sortedItems.sort((qa, qb) => {
+                //console.log("ORDERFIELDS", qa, qb);
+                if (qa[orderingField] > qb[orderingField])
                     return orderingDirection > 0 ? -1 : 1;
                 if (qa[orderingField] < qb[orderingField])
                     return orderingDirection > 0 ? 1 : -1;
@@ -256,26 +264,69 @@ const accessor = class {
                 return randomized;
             });
         }
+        return sortedItems;
+    }
+    getItemFromEntity(pObj, entity) {
+        console.log("getItemFromEntity", pObj, entity);
+        const item = Object.assign({}, entity.item);
+        //console.log("item", item);
+        Object.keys(pObj.foreignKeys).map(plural => {
+            //console.log("plural", plural);
+            const fkEntityConfig = this.getEntityConfig(plural);
+            //console.log("fkEntityConfig", fkEntityConfig);
 
-        return selected;
+            const value = item[fkEntityConfig.name];
+            //console.log("value", value);
+            if (value) {
+                const fkObj = {
+                    id: value,
+                    name: this.foreignKeyEntityCache[plural][value].name
+                }
+                item[fkEntityConfig.name] = fkObj;
+            }
+
+
+
+        });
+        console.log("ITEM 1", item);
+        return item;
     }
 
-    generateRound(pObj, selected) {
+    generateRound(pObj, excluded) {
+        const selected = DataAccessor.selectEntriesFromPool(pObj, excluded);
+
+        console.log("SELECTED 1", selected);
+        const items = selected.map((id) => {
+            return DataAccessor.entityCacheMap[pObj.entity]["" + id + ""]
+        }).map((obj) => {
+            return this.getItemFromEntity(pObj, obj);
+        });
+
+        // console.log("ITEMS unsorted", items);
+        const sortedItems = this.sortItemsByOrderingField(items)
+        const ordered = sortedItems.map(item => item.id);
+        console.log("ORDERED 1", ordered);
+
         const round = {};
         round.entity = pObj.entity;
         round.key = pObj.key;
         round.index = 0;
-        round.items = selected;
+        round.items = ordered;
 
-
+        console.log("POBJ", pObj);
 
         if (pObj.foreignKeys) {
             Object.keys(pObj.foreignKeys).map((plural) => { //categories
                 const id = pObj.foreignKeys[plural];
                 const entityConfig = this.getEntityConfig(pObj.entity);
+                //console.log("ENTITY CONFIG FIELDS", entityConfig.fields);
                 const fkConfig = this.getEntityConfig(plural);
-                const field = entityConfig.fields.filter(field => field.name === fkConfig.name)[0]
-                const name = field.name; //category
+                //console.log("FK CONFIG", fkConfig);
+
+                const field = entityConfig.fields.find(field => field.foreignKey === fkConfig.plural);
+                //console.log("FIELD FOUND", field);
+
+                const name = fkConfig.name; //category
                 const entity = this.foreignKeyEntityCache[plural][id];
                 //the category
                 //console.log("XYZ", name, entity, field)
@@ -285,6 +336,9 @@ const accessor = class {
                 }
             })
         }
+
+
+        console.log("ROUND 1", round);
 
         return round;
     }
@@ -439,7 +493,7 @@ const accessor = class {
                                 if (query[key]) {
                                     const intersection = fieldEntityConfig.intersection;
                                     const mode = 1;
-                                    const keyArray = query[key].split(',');
+                                    const keyArray = typeof query[key] === 'string' ? query[key].split(',') : ['' + query[key]];
                                     if (mode === 0) {
                                         //UNION of categories
                                         queryObj.join = queryObj.join || [];
